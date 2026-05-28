@@ -14,15 +14,15 @@ export const formatPercent = (value) => `${value > 0 ? '+' : ''}${value.toFixed(
 
 export const formatCompactCurrency = (value) => {
   if (value >= 10000000) {
-    return `₹${(value / 10000000).toFixed(2)} Cr`;
+    return `\u20B9${(value / 10000000).toFixed(2)} Cr`;
   }
 
   if (value >= 100000) {
-    return `₹${(value / 100000).toFixed(1)} L`;
+    return `\u20B9${(value / 100000).toFixed(1)} L`;
   }
 
   if (value >= 1000) {
-    return `₹${(value / 1000).toFixed(1)} K`;
+    return `\u20B9${(value / 1000).toFixed(1)} K`;
   }
 
   return formatCurrency(value);
@@ -30,16 +30,16 @@ export const formatCompactCurrency = (value) => {
 
 export const formatShortTick = (value) => {
   if (value >= 10000000) {
-    return `₹${(value / 10000000).toFixed(1)}Cr`;
+    return `\u20B9${(value / 10000000).toFixed(1)}Cr`;
   }
 
   if (value >= 100000) {
-    return `₹${(value / 100000).toFixed(1)}L`;
+    return `\u20B9${(value / 100000).toFixed(1)}L`;
   }
 
   if (value >= 1000) {
-    return `₹${(value / 1000).toFixed(0)}K`;
+    return `\u20B9${(value / 1000).toFixed(0)}K`;
   }
 
-  return `₹${value}`;
+  return `\u20B9${value}`;
 };

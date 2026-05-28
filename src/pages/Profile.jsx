@@ -2,7 +2,7 @@ import { Building2, CreditCard, Mail, MapPin, Phone, ShieldCheck, User, X, FileT
 import { useEffect, useState } from 'react';
 import SectionCard from '../components/SectionCard';
 import StatusBadge from '../components/StatusBadge';
-import { getBankDetails, getInvestorDashboard, getKycStatus, updateProfileDetails, saveAuthData, getUserPhone, linkBank, submitKyc, saveOnboardingStatus, getStoredOnboardingStatus } from '../services/api';
+import { getBankDetails, getFileViewUrl, getInvestorDashboard, getKycStatus, updateProfileDetails, saveAuthData, getUserPhone, linkBank, submitKyc, saveOnboardingStatus, getStoredOnboardingStatus } from '../services/api';
 import { getRuntimeUserProfile } from '../utils/runtimeUserProfile';
 
 function pickFirst(...values) {
@@ -26,9 +26,35 @@ function formatDate(dateValue) {
   }
 }
 
+function getDocumentPath(submission, ...keys) {
+  return keys.map((key) => submission?.[key]).find(Boolean) || '';
+}
+
+function ExistingDocumentLink({ title, path }) {
+  if (!path) return null;
+
+  const fileName = String(path).split('/').pop().split('\\').pop();
+
+  return (
+    <a
+      href={getFileViewUrl(path)}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm transition hover:border-emerald-300 hover:bg-emerald-100"
+    >
+      <span>
+        <span className="block font-semibold text-emerald-800">{title}</span>
+        <span className="block max-w-[260px] truncate text-xs text-emerald-600">{fileName}</span>
+      </span>
+      <span className="text-xs font-semibold text-emerald-700">View</span>
+    </a>
+  );
+}
+
 function Profile() {
   const [userProfile, setUserProfile] = useState(getRuntimeUserProfile());
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [kycSubmission, setKycSubmission] = useState(null);
 
   const initialForm = {
     name: '',
@@ -73,7 +99,9 @@ function Profile() {
         const dashboard = dashboardRes?.data || dashboardRes || {};
         const bank = bankRes?.data || bankRes || {};
         const kyc = kycRes?.data || kycRes || {};
+        const submission = kyc.submission || kyc.kycSubmission || null;
         const runtime = getRuntimeUserProfile();
+        setKycSubmission(submission);
 
         const nextProfile = {
           ...runtime,
@@ -81,13 +109,13 @@ function Profile() {
           email: pickFirst(dashboard.profile?.email, dashboard.email, dashboard.user?.email, runtime.email),
           phone: pickFirst(dashboard.profile?.mobileNumber, getUserPhone(), dashboard.mobileNumber, dashboard.phoneNumber, dashboard.user?.mobileNumber, runtime.phone),
           address: pickFirst(dashboard.profile?.address, dashboard.user?.address),
-          dateOfBirth: pickFirst(kyc.dateOfBirth, dashboard.profile?.dateOfBirth, dashboard.user?.dateOfBirth),
+          dateOfBirth: pickFirst(submission?.dateOfBirth, kyc.dateOfBirth, dashboard.profile?.dateOfBirth, dashboard.user?.dateOfBirth),
           accountHolderName: pickFirst(bank.accountHolderName, bank.bank?.accountHolderName, dashboard.profile?.accountHolderName, runtime.name),
           accountNumber: pickFirst(bank.bankAccountNumber, bank.accountNumber, bank.bank?.bankAccountNumber, dashboard.profile?.bankAccountNumber, dashboard.user?.bankAccountNumber, runtime.accountNumber),
           ifscCode: pickFirst(bank.ifscCode, bank.bankIfscCode, bank.bank?.ifscCode, dashboard.profile?.bankIfscCode, dashboard.user?.ifscCode),
           bankName: pickFirst(bank.bankName, bank.bank?.bankName, dashboard.profile?.bankName, dashboard.user?.bankName),
-          panNumber: pickFirst(kyc.panNumber, dashboard.profile?.panNumber, dashboard.user?.panNumber),
-          aadhaarNumber: pickFirst(kyc.aadhaarLast4, kyc.aadhaarNumber, dashboard.profile?.aadhaarLast4, dashboard.user?.aadhaarLast4),
+          panNumber: pickFirst(submission?.panNumber, kyc.panNumber, dashboard.profile?.panNumber, dashboard.user?.panNumber),
+          aadhaarNumber: pickFirst(submission?.aadhaarLast4, kyc.aadhaarLast4, kyc.aadhaarNumber, dashboard.profile?.aadhaarLast4, dashboard.user?.aadhaarLast4),
           joinDate: pickFirst(dashboard.profile?.createdAt, dashboard.joinDate, dashboard.createdAt, runtime.joinDate),
           kycStatus: pickFirst(kyc.kycStatus, dashboard.profile?.kycStatus, dashboard.kycStatus, runtime.kycStatus, 'Not Verified'),
           accountStatus: pickFirst(
@@ -217,6 +245,9 @@ function Profile() {
           }
         }
       }
+      const latestKyc = await getKycStatus().catch(() => null);
+      const latestSubmission = latestKyc?.data?.submission || latestKyc?.submission || latestKyc?.kycSubmission || null;
+      if (latestSubmission) setKycSubmission(latestSubmission);
 
       // 2. Bank Details
       // Only attempt to save bank details if KYC is approved AND the user actually provided account info.
@@ -456,7 +487,23 @@ function Profile() {
 
           {/* Document Uploads */}
           <div className="mt-8">
-            <h3 className="mb-4 text-sm font-semibold text-slate-900">Upload Documents</h3>
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
+              {kycSubmission ? 'Saved KYC Documents' : 'Upload Documents'}
+            </h3>
+            {kycSubmission && (
+              <div className="mb-5 grid gap-3 md:grid-cols-2">
+                <ExistingDocumentLink title="PAN Card" path={getDocumentPath(kycSubmission, 'panCardPath', 'panCard', 'panCardUrl')} />
+                <ExistingDocumentLink title="Aadhaar Front" path={getDocumentPath(kycSubmission, 'aadhaarFrontPath', 'aadhaarFront', 'aadhaarFrontUrl')} />
+                <ExistingDocumentLink title="Aadhaar Back" path={getDocumentPath(kycSubmission, 'aadhaarBackPath', 'aadhaarBack', 'aadhaarBackUrl')} />
+                <ExistingDocumentLink title="Selfie Photo" path={getDocumentPath(kycSubmission, 'selfiePath', 'selfie', 'selfieUrl')} />
+                <ExistingDocumentLink title="Bank Proof" path={getDocumentPath(kycSubmission, 'bankProofPath', 'bankProof', 'bankProofUrl')} />
+              </div>
+            )}
+            {String(userProfile.kycStatus).toUpperCase() === 'APPROVED' && (
+              <div className="mb-5 rounded-[22px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                Your KYC is approved. File inputs cannot show old selected files after page refresh, so approved documents are shown above as view links.
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
               <label className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                 <span className="flex items-center gap-2 text-sm font-medium text-slate-700">

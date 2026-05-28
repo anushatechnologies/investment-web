@@ -1,4 +1,18 @@
-import { ArrowRight, BriefcaseBusiness, ShieldCheck, Share2, Loader2 } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Loader2, ShieldCheck, Share2 } from 'lucide-react';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginWithEmail, verifyMpinLogin, saveAuthData } from '../services/api';
@@ -50,9 +64,6 @@ function LoginPage({ onLogin }) {
         result = await loginWithEmail(identifier, password);
       }
 
-      // Preserve all fields from result to capture phone and other data
-      // Use the full result object for saveAuthData so that phone (mobileNumber/phoneNumber) is stored.
-      // Then ensure email fallback if not provided.
       saveAuthData({
         ...result,
         email: result.email || (identifier.includes('@') ? identifier : ''),
@@ -72,159 +83,195 @@ function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-      <div className="mx-auto grid w-full max-w-7xl overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[1fr_460px]">
-        <section className="relative overflow-hidden bg-[#07172d] px-8 py-10 text-white sm:px-10 lg:px-12">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.24),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.2),transparent_24%)]" />
-          <div className="relative">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 overflow-hidden items-center justify-center rounded-full bg-white shadow-md">
-                <img
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', px: 2, py: 4 }}>
+      <Card sx={{ width: '100%', maxWidth: 1240, overflow: 'hidden', borderRadius: '32px' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.2fr 460px' } }}>
+          <Box
+            sx={{
+              position: 'relative',
+              px: { xs: 3, sm: 5 },
+              py: { xs: 4, sm: 5 },
+              color: 'white',
+              background: 'linear-gradient(160deg, #07172d 0%, #102447 48%, #0a1831 100%)',
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                background: 'radial-gradient(circle at top left, rgba(59,130,246,0.24), transparent 28%), radial-gradient(circle at bottom right, rgba(14,165,233,0.18), transparent 24%)',
+              }}
+            />
+            <Box sx={{ position: 'relative' }}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box
+                  component="img"
                   src={BRAND_LOGO_PRIMARY}
                   alt="Anusha Trade"
-                  className="h-full w-full object-contain p-0.5"
                   onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
+                  sx={{ width: 64, height: 64, borderRadius: '20px', bgcolor: 'white', p: 0.5, objectFit: 'contain' }}
                 />
-              </div>
-              <div>
-                <p className="font-heading text-2xl font-semibold whitespace-nowrap">Anusha Trade</p>
-              </div>
-            </div>
-
-            <div className="mt-12 max-w-2xl">
-              <p className="inline-flex rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white">
-                User & Admin Access
-              </p>
-              <h1 className="mt-5 font-heading text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                One portal for investor dashboards and admin operations.
-              </h1>
-              <p className="mt-5 text-base leading-7 text-slate-300">
-                Sign in with your mobile number or email to access your dashboard.
-                New users can sign up with their mobile number via OTP verification.
-              </p>
-            </div>
-
-            <div className="mt-10 grid gap-4">
-              {highlights.map(({ title, copy, icon: Icon }) => (
-                <div
-                  key={title}
-                  className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/20 text-blue-100 ring-1 ring-white/10">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="font-heading text-lg font-semibold text-white">{title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-300">{copy}</p>
-                    </div>
-                  </div>
+                <div>
+                  <Typography variant="h4" sx={{ fontSize: 30, color: 'white' }}>Anusha Trade</Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Investor + Admin Portal</Typography>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              </Stack>
 
-        <section className="bg-white px-8 py-10 sm:px-10">
-          <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
-              Welcome back
-            </p>
-            <h2 className="mt-3 font-heading text-3xl font-semibold text-slate-900">
-              Sign In
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Enter your credentials to access your account.
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Mobile Number or Email</label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                className="input-shell"
-                placeholder="Enter mobile number or email"
+              <Chip
+                label="User & Admin Access"
+                color="primary"
+                sx={{ mt: 8, borderRadius: '999px', fontWeight: 800, letterSpacing: '0.18em' }}
               />
-            </div>
+              <Typography variant="h1" sx={{ mt: 3, fontSize: { xs: 40, sm: 52 }, color: 'white', maxWidth: 760 }}>
+                One portal for investor onboarding, portfolio tracking, and admin operations.
+              </Typography>
+              <Typography sx={{ mt: 3, maxWidth: 640, color: 'rgba(255,255,255,0.76)', lineHeight: 1.8 }}>
+                Sign in with email, mobile, password, or MPIN. The onboarding flow, KYC flow,
+                bank linking flow, and admin review pipeline are now connected to the live backend.
+              </Typography>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">
-                  {credentialMode === 'password' ? 'Password' : 'MPIN'}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => { setCredentialMode((m) => m === 'password' ? 'mpin' : 'password'); setError(''); }}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500"
+              <Stack spacing={2} sx={{ mt: 5 }}>
+                {highlights.map(({ title, copy, icon: Icon }) => (
+                  <Card
+                    key={title}
+                    sx={{
+                      bgcolor: 'rgba(255,255,255,0.05)',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                      boxShadow: 'none',
+                    }}
+                  >
+                    <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '18px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: 'rgba(37,99,235,0.18)',
+                          color: '#dbeafe',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </Box>
+                      <div>
+                        <Typography variant="h6" sx={{ color: 'white', fontSize: 18 }}>{title}</Typography>
+                        <Typography variant="body2" sx={{ mt: 0.75, color: 'rgba(255,255,255,0.72)', lineHeight: 1.8 }}>
+                          {copy}
+                        </Typography>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          </Box>
+
+          <CardContent sx={{ p: { xs: 3, sm: 4.5 } }}>
+            <Typography variant="overline" color="primary" sx={{ fontWeight: 800, letterSpacing: '0.22em' }}>
+              Welcome back
+            </Typography>
+            <Typography variant="h3" sx={{ mt: 1.5, fontSize: { xs: 30, sm: 36 } }}>
+              Sign In
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 3.5, lineHeight: 1.8 }}>
+              Enter your credentials to access your investor or admin account.
+            </Typography>
+
+            {error && <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert>}
+
+            <form onSubmit={handleSubmit}>
+              <Stack spacing={2.5}>
+                <TextField
+                  label="Mobile Number or Email"
+                  value={identifier}
+                  onChange={(event) => setIdentifier(event.target.value)}
+                  placeholder="Enter mobile number or email"
+                  required
+                  fullWidth
+                />
+
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                      {credentialMode === 'password' ? 'Password' : 'MPIN'}
+                    </Typography>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      value={credentialMode}
+                      onChange={(_, value) => {
+                        if (value) {
+                          setCredentialMode(value);
+                          setError('');
+                        }
+                      }}
+                    >
+                      <ToggleButton value="password">Password</ToggleButton>
+                      <ToggleButton value="mpin">MPIN</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Stack>
+
+                  {credentialMode === 'password' ? (
+                    <TextField
+                      type="password"
+                      required
+                      fullWidth
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Enter password"
+                    />
+                  ) : (
+                    <TextField
+                      type="password"
+                      required
+                      fullWidth
+                      inputProps={{ maxLength: 6, inputMode: 'numeric' }}
+                      value={mpin}
+                      onChange={(event) => setMpin(event.target.value.replace(/\D/g, ''))}
+                      placeholder="Enter MPIN"
+                    />
+                  )}
+                </Box>
+
+                <Stack direction="row" justifyContent="space-between" sx={{ fontSize: 14 }}>
+                  <Link to="/forgot-password" className="font-medium text-blue-600 hover:underline">
+                    Forgot Password?
+                  </Link>
+                  <Link to="/forgot-mpin" className="font-medium text-blue-600 hover:underline">
+                    Forgot MPIN?
+                  </Link>
+                </Stack>
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={loading}
+                  endIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                 >
-                  {credentialMode === 'password' ? 'Use MPIN instead' : 'Use Password instead'}
-                </button>
-              </div>
-              {credentialMode === 'password' ? (
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="input-shell"
-                  placeholder="Enter password"
-                />
-              ) : (
-                <input
-                  type="password"
-                  required
-                  maxLength={6}
-                  value={mpin}
-                  onChange={(event) => setMpin(event.target.value.replace(/\D/g, ''))}
-                  className="input-shell text-center text-xl tracking-[0.5em]"
-                  placeholder="* * * *"
-                />
-              )}
-            </div>
+                  {loading ? 'Signing In...' : 'Sign In'}
+                </Button>
 
-            <div className="flex items-center justify-between text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-600 hover:underline">
-                Forgot Password?
-              </Link>
-              <Link to="/forgot-mpin" className="font-medium text-blue-600 hover:underline">
-                Forgot MPIN?
-              </Link>
-            </div>
+                <Divider>or</Divider>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-              <div className="relative flex justify-center text-sm"><span className="bg-white px-4 text-slate-400">or</span></div>
-            </div>
-
-            <Link to="/signup" className="btn-secondary w-full text-center">
-              <span>Sign up with Mobile OTP</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </form>
-        </section>
-      </div>
-    </div>
+                <Button
+                  component={Link}
+                  to="/signup"
+                  variant="outlined"
+                  size="large"
+                  endIcon={<ArrowRight className="h-4 w-4" />}
+                >
+                  Sign up with Mobile OTP
+                </Button>
+              </Stack>
+            </form>
+          </CardContent>
+        </Box>
+      </Card>
+    </Box>
   );
 }
 

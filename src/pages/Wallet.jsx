@@ -25,8 +25,9 @@ function Wallet() {
     Promise.all([getWallet(), getWalletTransactions()])
       .then(([walletResponse, transactionsResponse]) => {
         if (!active) return;
-        setWalletData(walletResponse?.data || walletResponse || {});
-        setTransactions(toArray(transactionsResponse));
+        const walletPayload = walletResponse?.data || walletResponse || {};
+        setWalletData(walletPayload.wallet || walletPayload || {});
+        setTransactions(toArray(transactionsResponse).length ? toArray(transactionsResponse) : toArray(walletPayload.recentTransactions));
       })
       .catch(() => {
         if (!active) return;

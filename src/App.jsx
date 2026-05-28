@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState } from 'react';
+import { CircularProgress, Stack, Typography } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/admin/AdminLayout';
@@ -43,9 +44,17 @@ const AUTH_STORAGE_KEY = 'anusha-invest-hub-auth-role'; // kept for backward com
 
 function RouteLoader() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="glass-card px-6 py-5 text-sm text-slate-600">Loading your dashboard...</div>
-    </div>
+    <Stack
+      alignItems="center"
+      justifyContent="center"
+      spacing={2}
+      sx={{ minHeight: '40vh' }}
+    >
+      <CircularProgress />
+      <Typography variant="body2" color="text.secondary">
+        Loading your dashboard...
+      </Typography>
+    </Stack>
   );
 }
 

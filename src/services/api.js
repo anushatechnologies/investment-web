@@ -15,6 +15,11 @@ export function buildUrl(endpoint) {
   return `${BASE_URL}${normalizedEndpoint}`;
 }
 
+export function getFileViewUrl(path) {
+  if (!path) return '';
+  return buildUrl(`/api/files/view?path=${encodeURIComponent(path)}`);
+}
+
 // ── Storage Keys ──────────────────────────────────────────
 const TOKEN_KEYS = {
   ACCESS: 'anusha-access-token',
@@ -352,6 +357,79 @@ export async function request(endpoint, { method = 'GET', body, auth = false, re
   return data;
 }
 
+async function requestFormData(endpoint, { method = 'POST', formData, auth = false, retryOnAuthFail = true } = {}) {
+  const headers = {};
+
+  if (auth) {
+    const token = getAccessToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let res;
+  try {
+    res = await fetch(buildUrl(endpoint), {
+      method,
+      headers,
+      body: formData,
+    });
+  } catch (networkError) {
+    const error = new Error(
+      'Unable to connect to server. Check internet, API URL, HTTPS, and backend CORS for this origin.',
+    );
+    error.status = 0;
+    error.data = { cause: networkError?.message || 'NetworkError' };
+    throw error;
+  }
+
+  const text = await res.text().catch(() => '');
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_) {
+    data = { raw: text };
+  }
+
+  if (!res.ok) {
+    if (auth && (res.status === 401 || res.status === 403) && retryOnAuthFail) {
+      const storedRefreshToken = getRefreshToken();
+      if (!storedRefreshToken) {
+        clearAuthData();
+        window.location.href = '/login';
+      } else {
+        try {
+          const refreshResult = await request('/api/auth/refresh-token', {
+            method: 'POST',
+            body: { refreshToken: storedRefreshToken },
+            retryOnAuthFail: false,
+          });
+          if (refreshResult?.accessToken) {
+            saveAuthData({ accessToken: refreshResult.accessToken });
+            return requestFormData(endpoint, { method, formData, auth, retryOnAuthFail: false });
+          }
+        } catch (refreshError) {
+          clearAuthData();
+          window.location.href = '/login';
+          throw refreshError;
+        }
+      }
+    }
+
+    const validationDetails =
+      Array.isArray(data?.errors) ? data.errors.join(', ')
+        : Array.isArray(data?.details) ? data.details.join(', ')
+          : typeof data?.details === 'string' ? data.details
+            : '';
+    const baseMessage = data.message || data.error || `Request failed (${res.status})`;
+    const errorMessage = validationDetails ? `${baseMessage}: ${validationDetails}` : baseMessage;
+    const error = new Error(errorMessage);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
 // ── Auth APIs ─────────────────────────────────────────────
 
 /**
@@ -541,26 +619,33 @@ export function resetPassword(idToken, newPassword) {
 }
 
 // ── KYC APIs ──────────────────────────────────────────────
-export function verifyPan(panNumber) {
-  return request('/api/kyc/pan-verify', { method: 'POST', body: { panNumber }, auth: true });
+export function verifyPan({ panNumber, panCardImage }) {
+  const formData = new FormData();
+  if (panCardImage) formData.append('panCardImage', panCardImage);
+  if (panNumber) formData.append('panNumber', panNumber);
+  return requestFormData('/api/kyc/pan-verify', { method: 'POST', formData, auth: true });
 }
 
-export function verifyAadhaar(aadhaarNumber) {
-  return request('/api/kyc/aadhaar-verify', { method: 'POST', body: { aadhaarNumber }, auth: true });
+export function verifyAadhaar({
+  aadhaarNumber,
+  aadhaarLast4,
+  address,
+  aadhaarFrontImage,
+  aadhaarBackImage,
+}) {
+  const formData = new FormData();
+  if (aadhaarFrontImage) formData.append('aadhaarFrontImage', aadhaarFrontImage);
+  if (aadhaarBackImage) formData.append('aadhaarBackImage', aadhaarBackImage);
+  if (aadhaarNumber) formData.append('aadhaarNumber', aadhaarNumber);
+  if (aadhaarLast4) formData.append('aadhaarLast4', aadhaarLast4);
+  if (address) formData.append('address', address);
+  return requestFormData('/api/kyc/aadhaar-verify', { method: 'POST', formData, auth: true });
 }
 
 export function uploadSelfie(file) {
   const formData = new FormData();
-  formData.append('selfie', file);
-  const token = getAccessToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(buildUrl('/api/kyc/upload-selfie'), { method: 'POST', headers, body: formData })
-    .then(async (res) => {
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || `Upload failed (${res.status})`);
-      return data;
-    });
+  formData.append('selfiePhoto', file);
+  return requestFormData('/api/kyc/upload-selfie', { method: 'POST', formData, auth: true });
 }
 
 export function getKycStatus() {
@@ -578,20 +663,7 @@ export function submitKyc(form) {
   formData.append('aadhaarLast4', form.aadhaarLast4 || '');
   formData.append('dateOfBirth', form.dateOfBirth || '');
   formData.append('address', form.address || '');
-
-  const token = getAccessToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  return fetch(buildUrl('/api/kyc/submit'), { method: 'POST', headers, body: formData }).then(async (res) => {
-    const text = await res.text().catch(() => '');
-    let data = {};
-    try { data = JSON.parse(text); } catch (_) { /* not JSON */ }
-    if (!res.ok) {
-      console.error(`[KYC submit] ${res.status} response:`, text);
-      const detailStr = Array.isArray(data.details) ? ` [${data.details.join(', ')}]` : '';
-      throw new Error((data.message || data.error || `KYC submit failed (${res.status})`) + detailStr);
-    }
-    return data;
-  });
+  return requestFormData('/api/kyc/submit', { method: 'POST', formData, auth: true });
 }
 
 // ── Bank APIs ─────────────────────────────────────────────
@@ -641,6 +713,22 @@ export function applyInvestment({ investmentPlanId, investmentAmount }) {
   });
 }
 
+export function createRazorpayCheckoutOrder({ investmentPlanId, investmentAmount }) {
+  return request('/api/payments/razorpay/checkout-order', {
+    method: 'POST',
+    body: { investmentPlanId, investmentAmount },
+    auth: true,
+  });
+}
+
+export function verifyRazorpayPayment({ investmentId, razorpayOrderId, razorpayPaymentId, razorpaySignature }) {
+  return request('/api/payments/razorpay/verify', {
+    method: 'POST',
+    body: { investmentId, razorpayOrderId, razorpayPaymentId, razorpaySignature },
+    auth: true,
+  });
+}
+
 export function uploadPaymentReceipt({ investmentId, receiptFile, paymentAmount, paymentDate, paymentMode, bankReference }) {
   const formData = new FormData();
   formData.append('receiptFile', receiptFile);
@@ -648,17 +736,10 @@ export function uploadPaymentReceipt({ investmentId, receiptFile, paymentAmount,
   formData.append('paymentDate', paymentDate);
   formData.append('paymentMode', paymentMode);
   formData.append('bankReference', bankReference);
-  const token = getAccessToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(buildUrl(`/api/investments/${investmentId}/upload-receipt`), {
+  return requestFormData(`/api/investments/${investmentId}/upload-receipt`, {
     method: 'POST',
-    headers,
-    body: formData,
-  }).then(async (res) => {
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `Upload failed (${res.status})`);
-    return data;
+    formData,
+    auth: true,
   });
 }
 
@@ -695,14 +776,7 @@ export function requestWithdrawal(requestedAmountOrPayload) {
   const amount = Number(payload.requestedAmount ?? payload.amount ?? payload.withdrawalAmount ?? 0);
   return request('/api/withdrawals/request', {
     method: 'POST',
-    body: {
-      requestedAmount: amount,
-      amount,
-      withdrawalAmount: amount,
-      method: payload.method || payload.paymentMethod || payload.mode || 'Bank Transfer',
-      paymentMethod: payload.paymentMethod || payload.method || payload.mode || 'Bank Transfer',
-      mode: payload.mode || payload.method || payload.paymentMethod || 'Bank Transfer',
-    },
+    body: { requestedAmount: amount },
     auth: true,
   });
 }
@@ -717,15 +791,20 @@ export function getInvestorDashboard() {
 }
 
 export async function updateProfileDetails(profile) {
-  return request('/api/user/profile', {
-    method: 'PUT',
-    body: profile,
-    auth: true,
+  saveAuthData({
+    name: profile.name,
+    email: profile.email,
+    mobileNumber: profile.phone,
+    city: profile.city,
+    bankName: profile.bankName,
+    bankAccountNumber: profile.accountNumber,
+    upiId: profile.upiId,
   });
+  return { success: true, profile };
 }
 
 export function getUserProfile() {
-  return request('/api/user/profile', { auth: true });
+  return getInvestorDashboard().then((response) => response?.profile || response?.data?.profile || {});
 }
 
 export function getReferralTree() {
@@ -755,6 +834,10 @@ export function adminGetPendingKyc() {
 
 export function adminGetKycDocuments(kycId) {
   return request(`/api/admin/kyc/${kycId}/documents`, { auth: true });
+}
+
+export function adminGetUserKycDocuments(userId) {
+  return request(`/api/admin/kyc/user/${userId}/documents`, { auth: true });
 }
 
 export function adminApproveKyc(kycId, adminNotes) {

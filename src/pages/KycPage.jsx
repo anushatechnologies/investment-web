@@ -1,7 +1,41 @@
-import { Loader2, UploadCloud } from 'lucide-react';
+import { CloudUploadRounded, DescriptionRounded, FingerprintRounded, PermIdentityRounded } from '@mui/icons-material';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveOnboardingStatus, submitKyc } from '../services/api';
+
+function UploadField({ label, accept, file, onChange, helper }) {
+  return (
+    <Card variant="outlined" sx={{ borderStyle: 'dashed', borderWidth: 1.5 }}>
+      <CardContent>
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <CloudUploadRounded color="primary" />
+            <Typography sx={{ fontWeight: 700 }}>{label}</Typography>
+          </Stack>
+          <Button component="label" variant="outlined">
+            Choose file
+            <input hidden type="file" accept={accept} onChange={onChange} />
+          </Button>
+          <Typography variant="body2" color="text.secondary">
+            {file?.name || helper}
+          </Typography>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
 
 function KycPage() {
   const navigate = useNavigate();
@@ -37,27 +71,144 @@ function KycPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="section-title">KYC Submission</h1>
-      <p className="section-copy mt-2">Upload your required KYC documents for admin approval.</p>
-      {error && <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-      <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-        <input className="input-shell" placeholder="PAN Number" value={form.panNumber} onChange={(e) => update('panNumber', e.target.value.toUpperCase())} required />
-        <input className="input-shell" placeholder="Aadhaar Last 4" maxLength={4} value={form.aadhaarLast4} onChange={(e) => update('aadhaarLast4', e.target.value.replace(/\D/g, ''))} required />
-        <input className="input-shell" type="date" value={form.dateOfBirth} onChange={(e) => update('dateOfBirth', e.target.value)} required />
-        <input className="input-shell" placeholder="Address" value={form.address} onChange={(e) => update('address', e.target.value)} required />
-        <label className="text-sm text-slate-600">PAN Card Image<input className="input-shell mt-1" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => update('panCardImage', e.target.files?.[0] || null)} required /></label>
-        <label className="text-sm text-slate-600">Aadhaar Front Image<input className="input-shell mt-1" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => update('aadhaarFrontImage', e.target.files?.[0] || null)} required /></label>
-        <label className="text-sm text-slate-600">Aadhaar Back Image<input className="input-shell mt-1" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => update('aadhaarBackImage', e.target.files?.[0] || null)} required /></label>
-        <label className="text-sm text-slate-600">Selfie Photo<input className="input-shell mt-1" type="file" accept=".jpg,.jpeg,.png" onChange={(e) => update('selfiePhoto', e.target.files?.[0] || null)} required /></label>
-        <label className="text-sm text-slate-600">Bank Passbook / Statement<input className="input-shell mt-1" type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => update('bankPassbookOrStatement', e.target.files?.[0] || null)} required /></label>
-        <button type="submit" disabled={loading} className="btn-primary mt-2 w-full disabled:opacity-60">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UploadCloud className="h-4 w-4" />Submit KYC</>}
-        </button>
-      </form>
-    </div>
+    <Card className="glass-card" sx={{ maxWidth: 1100, mx: 'auto' }}>
+      <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
+        <Stack spacing={1.25}>
+          <Typography variant="overline" color="primary" sx={{ fontWeight: 800, letterSpacing: '0.18em' }}>
+            Onboarding Step
+          </Typography>
+          <Typography variant="h3" sx={{ fontSize: { xs: 30, sm: 38 } }}>
+            KYC Submission
+          </Typography>
+          <Typography color="text.secondary" sx={{ maxWidth: 720, lineHeight: 1.8 }}>
+            Upload identity and banking proof so the admin team can review and approve your investor account.
+          </Typography>
+        </Stack>
+
+        {error && <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>}
+
+        <Box component="form" sx={{ mt: 4 }} onSubmit={onSubmit}>
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="PAN Number"
+                value={form.panNumber}
+                onChange={(e) => update('panNumber', e.target.value.toUpperCase())}
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PermIdentityRounded color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Aadhaar Last 4"
+                inputProps={{ maxLength: 4 }}
+                value={form.aadhaarLast4}
+                onChange={(e) => update('aadhaarLast4', e.target.value.replace(/\D/g, ''))}
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <FingerprintRounded color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Date of Birth"
+                value={form.dateOfBirth}
+                onChange={(e) => update('dateOfBirth', e.target.value)}
+                required
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Address"
+                value={form.address}
+                onChange={(e) => update('address', e.target.value)}
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DescriptionRounded color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <UploadField
+                label="PAN Card Image"
+                accept=".jpg,.jpeg,.png,.pdf"
+                file={form.panCardImage}
+                helper="Upload PAN card scan or clear photo"
+                onChange={(e) => update('panCardImage', e.target.files?.[0] || null)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <UploadField
+                label="Aadhaar Front"
+                accept=".jpg,.jpeg,.png,.pdf"
+                file={form.aadhaarFrontImage}
+                helper="Upload front side of Aadhaar"
+                onChange={(e) => update('aadhaarFrontImage', e.target.files?.[0] || null)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <UploadField
+                label="Aadhaar Back"
+                accept=".jpg,.jpeg,.png,.pdf"
+                file={form.aadhaarBackImage}
+                helper="Upload back side of Aadhaar"
+                onChange={(e) => update('aadhaarBackImage', e.target.files?.[0] || null)}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <UploadField
+                label="Selfie Photo"
+                accept=".jpg,.jpeg,.png"
+                file={form.selfiePhoto}
+                helper="Upload a clear live selfie"
+                onChange={(e) => update('selfiePhoto', e.target.files?.[0] || null)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <UploadField
+                label="Bank Passbook or Statement"
+                accept=".jpg,.jpeg,.png,.pdf"
+                file={form.bankPassbookOrStatement}
+                helper="Upload a recent passbook or statement image/PDF"
+                onChange={(e) => update('bankPassbookOrStatement', e.target.files?.[0] || null)}
+              />
+            </Grid>
+          </Grid>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" sx={{ mt: 4 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
+              Once submitted, your KYC will move to admin review. You’ll be guided automatically to the next onboarding step after approval.
+            </Typography>
+            <Button type="submit" variant="contained" size="large" disabled={loading}>
+              {loading ? 'Submitting...' : 'Submit KYC'}
+            </Button>
+          </Stack>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
 export default KycPage;
-

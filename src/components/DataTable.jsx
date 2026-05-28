@@ -1,23 +1,44 @@
 import { useDeferredValue, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import SearchIcon from '@mui/icons-material/Search';
+import {
+  Box,
+  Button,
+  Card,
+  FormControl,
+  InputAdornment,
+  MenuItem,
+  Pagination,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
 
 function ActionButton({ action }) {
   const Icon = action.icon;
-  const variants = {
-    primary: 'btn-primary',
-    secondary: 'btn-secondary',
-    danger: 'btn-danger',
+  const colorMap = {
+    primary: 'primary',
+    secondary: 'inherit',
+    danger: 'error',
   };
 
   return (
-    <button
+    <Button
       type="button"
+      variant={action.variant === 'primary' ? 'contained' : 'outlined'}
+      color={colorMap[action.variant] ?? 'inherit'}
       onClick={action.onClick}
-      className={variants[action.variant] ?? variants.secondary}
+      startIcon={Icon ? <Icon className="h-4 w-4" /> : null}
+      sx={{ borderRadius: '16px' }}
     >
-      {Icon && <Icon className="h-4 w-4" />}
-      <span>{action.label}</span>
-    </button>
+      {action.label}
+    </Button>
   );
 }
 
@@ -58,137 +79,126 @@ function DataTable({
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="glass-card p-5 sm:p-6">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <Card className="glass-card" sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Stack
+        direction={{ xs: 'column', lg: 'row' }}
+        spacing={2}
+        alignItems={{ xs: 'flex-start', lg: 'flex-end' }}
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
         <div>
-          <h3 className="theme-panel-title font-heading text-xl font-semibold text-slate-900">
+          <Typography variant="h5" className="theme-panel-title" sx={{ fontSize: { xs: 20, sm: 22 } }}>
             {title}
-          </h3>
+          </Typography>
           {description && (
-            <p className="theme-panel-subtitle mt-2 text-sm text-slate-500">{description}</p>
+            <Typography variant="body2" className="theme-panel-subtitle" sx={{ mt: 1 }}>
+              {description}
+            </Typography>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: { xs: '100%', lg: 'auto' } }}>
           {filterKey && filterOptions.length > 0 && (
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
-                <ChevronDown className="h-4 w-4 rotate-90" />
-              </span>
-              <select
+            <FormControl sx={{ minWidth: 170 }}>
+              <Select
                 value={selectedFilter}
-                onChange={(event) => { setSelectedFilter(event.target.value); setCurrentPage(1); }}
-                className="input-shell min-w-[160px] appearance-none pl-11 pr-10"
+                onChange={(event) => {
+                  setSelectedFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                size="small"
               >
-                <option value="All">All</option>
+                <MenuItem value="All">All</MenuItem>
                 {filterOptions.map((option) => (
-                  <option key={option} value={option}>
+                  <MenuItem key={option} value={option}>
                     {option}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </div>
+              </Select>
+            </FormControl>
           )}
           {actions.map((action) => (
             <ActionButton key={action.label} action={action} />
           ))}
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
-      <div className="mb-5 max-w-xl">
-        <label className="relative block">
-          <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            value={query}
-            onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }}
-            className="input-shell pl-11"
-            placeholder={searchPlaceholder}
-          />
-        </label>
-      </div>
+      <Box sx={{ mb: 3, maxWidth: 460 }}>
+        <TextField
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setCurrentPage(1);
+          }}
+          fullWidth
+          placeholder={searchPlaceholder}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
 
-      <div className="table-wrap">
-        <div className="table-scroll">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                {columns.map((column) => (
-                  <th key={column.key} className="table-header-cell">
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedRows.length > 0 ? (
-                paginatedRows.map((row) => (
-                  <tr key={row.id ?? row.name} className="hover:bg-slate-50/80">
-                    {columns.map((column) => (
-                      <td key={column.key} className="table-cell">
-                        {column.render ? column.render(row) : row[column.key]}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-5 py-12 text-center text-sm text-slate-500"
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TableContainer className="table-wrap">
+        <Table className="min-w-full">
+          <TableHead>
+            <TableRow>
+              {columns.map((column) => (
+                <TableCell key={column.key}>{column.label}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {paginatedRows.length > 0 ? (
+              paginatedRows.map((row) => (
+                <TableRow
+                  key={row.id ?? row.name}
+                  hover
+                  sx={{
+                    '&:last-child td': { borderBottom: 'none' },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell key={column.key}>
+                      {column.render ? column.render(row) : row[column.key]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 8, color: 'text.secondary' }}>
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      <div className="theme-panel-subtitle mt-5 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        sx={{ mt: 3 }}
+      >
+        <Typography variant="body2" className="theme-panel-subtitle">
           Showing {paginatedRows.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredRows.length)} of {filteredRows.length} entries
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="h-10 px-3 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-semibold transition admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300"
-          >
-            Prev
-          </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              type="button"
-              onClick={() => setCurrentPage(page)}
-              className={`h-10 w-10 rounded-2xl border text-sm font-semibold transition ${
-                page === currentPage
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
-
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="h-10 px-3 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-semibold transition admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
+        </Typography>
+        <Pagination
+          page={currentPage}
+          count={totalPages}
+          onChange={(_, page) => setCurrentPage(page)}
+          color="primary"
+          shape="rounded"
+        />
+      </Stack>
+    </Card>
   );
 }
 

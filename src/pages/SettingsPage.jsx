@@ -1,68 +1,170 @@
-import { ArrowRightLeft, Banknote, Bell, ShieldCheck, Wallet } from 'lucide-react';
-import { useState } from 'react';
+import { Banknote, CalendarClock, RefreshCw, Save, ShieldCheck, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import SectionCard from '../components/SectionCard';
-import { platformRules, settingsToggles } from '../data/adminData';
+import StatusBadge from '../components/StatusBadge';
+import {
+  adminCreatePlan,
+  adminGetAllPlans,
+  adminTriggerMonthlyInterestRun,
+  adminUpdatePlan,
+} from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
-function ToggleRow({ label, description, checked, onChange }) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-      <div>
-        <p className="font-medium text-white">{label}</p>
-        <p className="mt-1 text-sm text-slate-400">{description}</p>
-      </div>
-      <button
-        type="button"
-        onClick={onChange}
-        className={`relative h-8 w-16 rounded-full transition ${
-          checked ? 'bg-blue-600' : 'bg-slate-700'
-        }`}
-      >
-        <span
-          className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
-            checked ? 'left-9' : 'left-1'
-          }`}
-        />
-      </button>
-    </div>
-  );
+const emptyPlan = {
+  id: '',
+  planName: 'Anusha Milk Trade',
+  description: 'Monthly income plan with admin-managed returns.',
+  minimumAmount: 5000,
+  maximumAmount: 1000000,
+  lockInMonths: 6,
+  monthlyInterestRate: 10,
+  active: true,
+};
+
+function toArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
 }
 
 function SettingsPage() {
-  const [formValues, setFormValues] = useState({
-    minInvestment: platformRules.minInvestment,
-    maxInvestment: platformRules.maxInvestment,
-    monthlyInterest: platformRules.monthlyInterest,
-    directReferralCommission: platformRules.directReferralCommission,
-    passiveReferralIncome: platformRules.passiveReferralIncome,
-    minWithdrawal: platformRules.minWithdrawal,
-    adminApprovalRequired: settingsToggles.adminApprovalRequired,
-    receiptVerificationRequired: settingsToggles.receiptVerificationRequired,
-    fraudMonitoringEnabled: settingsToggles.fraudMonitoringEnabled,
-    autoFreezeHighRiskUsers: settingsToggles.autoFreezeHighRiskUsers,
-    emailAlertsEnabled: settingsToggles.emailAlertsEnabled,
-    weeklySummaryEnabled: settingsToggles.weeklySummaryEnabled,
-  });
-  const [saved, setSaved] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [formValues, setFormValues] = useState(emptyPlan);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [interestRunning, setInterestRunning] = useState(false);
 
-  const updateNumber = (field) => (event) => {
-    setSaved(false);
-    setFormValues((current) => ({
-      ...current,
-      [field]: Number(event.target.value),
-    }));
+  const selectedPlan = useMemo(
+    () => plans.find((plan) => String(plan.id) === String(selectedPlanId)),
+    [plans, selectedPlanId],
+  );
+
+  const estimatedMonthlyInterest = useMemo(() => {
+    const amount = Number(formValues.minimumAmount || 0);
+    const rate = Number(formValues.monthlyInterestRate || 0);
+    return (amount * rate) / 100;
+  }, [formValues.minimumAmount, formValues.monthlyInterestRate]);
+
+  const loadPlans = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await adminGetAllPlans();
+      const loadedPlans = toArray(response);
+      setPlans(loadedPlans);
+      const primaryPlan =
+        loadedPlans.find((plan) => String(plan.planName || '').toLowerCase().includes('anusha milk trade')) ||
+        loadedPlans.find((plan) => plan.active !== false) ||
+        loadedPlans[0];
+
+      if (primaryPlan) {
+        setSelectedPlanId(primaryPlan.id);
+        setFormValues({
+          id: primaryPlan.id,
+          planName: primaryPlan.planName || emptyPlan.planName,
+          description: primaryPlan.description || emptyPlan.description,
+          minimumAmount: Number(primaryPlan.minimumAmount || emptyPlan.minimumAmount),
+          maximumAmount: Number(primaryPlan.maximumAmount || emptyPlan.maximumAmount),
+          lockInMonths: Number(primaryPlan.lockInMonths || emptyPlan.lockInMonths),
+          monthlyInterestRate: Number(primaryPlan.monthlyInterestRate || emptyPlan.monthlyInterestRate),
+          active: primaryPlan.active !== false,
+        });
+      } else {
+        setSelectedPlanId('');
+        setFormValues(emptyPlan);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load investment plans.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleValue = (field) => () => {
-    setSaved(false);
-    setFormValues((current) => ({
-      ...current,
-      [field]: !current[field],
-    }));
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const updateField = (field) => (event) => {
+    const value = event.target.type === 'number' ? Number(event.target.value) : event.target.value;
+    setMessage('');
+    setError('');
+    setFormValues((current) => ({ ...current, [field]: value }));
   };
 
-  const handleSave = () => {
-    setSaved(true);
+  const handlePlanSelect = (event) => {
+    const plan = plans.find((item) => String(item.id) === String(event.target.value));
+    setSelectedPlanId(event.target.value);
+    setMessage('');
+    setError('');
+    if (plan) {
+      setFormValues({
+        id: plan.id,
+        planName: plan.planName || emptyPlan.planName,
+        description: plan.description || emptyPlan.description,
+        minimumAmount: Number(plan.minimumAmount || emptyPlan.minimumAmount),
+        maximumAmount: Number(plan.maximumAmount || emptyPlan.maximumAmount),
+        lockInMonths: Number(plan.lockInMonths || emptyPlan.lockInMonths),
+        monthlyInterestRate: Number(plan.monthlyInterestRate || emptyPlan.monthlyInterestRate),
+        active: plan.active !== false,
+      });
+    }
+  };
+
+  const handleNewPlan = () => {
+    setSelectedPlanId('');
+    setFormValues(emptyPlan);
+    setMessage('');
+    setError('');
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage('');
+    setError('');
+    try {
+      const payload = {
+        planName: formValues.planName,
+        description: formValues.description,
+        minimumAmount: Number(formValues.minimumAmount),
+        maximumAmount: Number(formValues.maximumAmount),
+        lockInMonths: Number(formValues.lockInMonths),
+        monthlyInterestRate: Number(formValues.monthlyInterestRate),
+        active: Boolean(formValues.active),
+      };
+
+      if (selectedPlanId) {
+        await adminUpdatePlan(selectedPlanId, payload);
+        setMessage('Investment plan updated. New investments will use the updated monthly interest.');
+      } else {
+        const { active, ...createPayload } = payload;
+        await adminCreatePlan(createPayload);
+        setMessage('Investment plan created and made available to investors.');
+      }
+      await loadPlans();
+    } catch (err) {
+      setError(err.message || 'Failed to save investment plan.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTriggerInterest = async () => {
+    setInterestRunning(true);
+    setMessage('');
+    setError('');
+    try {
+      const response = await adminTriggerMonthlyInterestRun();
+      setMessage(response?.message || 'Monthly interest run completed.');
+    } catch (err) {
+      setError(err.message || 'Failed to trigger monthly interest.');
+    } finally {
+      setInterestRunning(false);
+    }
   };
 
   return (
@@ -73,175 +175,133 @@ function SettingsPage() {
         </p>
         <h1 className="section-title mt-3">Settings</h1>
         <p className="section-copy mt-3 max-w-3xl">
-          Configure investment rules, referral commissions, approval requirements, and notification
-          preferences for the admin platform.
+          Manage real investment plans, investor amount limits, and monthly interest credited from
+          the admin panel.
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-        <SectionCard title="Business Rules" subtitle="Editable values ready for backend configuration wiring.">
+      {(message || error) && (
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${error ? 'border-rose-500/30 bg-rose-500/10 text-rose-100' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'}`}>
+          {error || message}
+        </div>
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
+        <SectionCard title="Investment Plan" subtitle="These values feed investor checkout and monthly interest calculation.">
           <div className="grid gap-4 md:grid-cols-2">
+            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
+              <span className="text-sm font-medium text-slate-300">Select existing plan</span>
+              <select value={selectedPlanId} onChange={handlePlanSelect} className="input-shell mt-3">
+                <option value="">Create new plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.planName} - {plan.monthlyInterestRate}% monthly
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                <ShieldCheck className="h-4 w-4 text-gold-soft" />
+                Plan name
+              </span>
+              <input value={formValues.planName} onChange={updateField('planName')} className="input-shell mt-3" />
+            </label>
+
+            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                <TrendingUp className="h-4 w-4 text-gold-soft" />
+                Monthly interest (%)
+              </span>
+              <input type="number" value={formValues.monthlyInterestRate} onChange={updateField('monthlyInterestRate')} className="input-shell mt-3" />
+            </label>
+
             <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
                 <Banknote className="h-4 w-4 text-gold-soft" />
                 Minimum investment
               </span>
-              <input
-                type="number"
-                value={formValues.minInvestment}
-                onChange={updateNumber('minInvestment')}
-                className="input-shell mt-3"
-              />
+              <input type="number" value={formValues.minimumAmount} onChange={updateField('minimumAmount')} className="input-shell mt-3" />
             </label>
+
             <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
                 <Banknote className="h-4 w-4 text-gold-soft" />
                 Maximum investment
               </span>
-              <input
-                type="number"
-                value={formValues.maxInvestment}
-                onChange={updateNumber('maxInvestment')}
-                className="input-shell mt-3"
-              />
+              <input type="number" value={formValues.maximumAmount} onChange={updateField('maximumAmount')} className="input-shell mt-3" />
             </label>
+
             <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                <Banknote className="h-4 w-4 text-gold-soft" />
-                Monthly interest (%)
+                <CalendarClock className="h-4 w-4 text-gold-soft" />
+                Lock-in months
               </span>
-              <input
-                type="number"
-                value={formValues.monthlyInterest}
-                onChange={updateNumber('monthlyInterest')}
-                className="input-shell mt-3"
-              />
+              <input type="number" value={formValues.lockInMonths} onChange={updateField('lockInMonths')} className="input-shell mt-3" />
             </label>
+
             <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                <ArrowRightLeft className="h-4 w-4 text-gold-soft" />
-                Direct referral commission (%)
-              </span>
-              <input
-                type="number"
-                value={formValues.directReferralCommission}
-                onChange={updateNumber('directReferralCommission')}
+              <span className="text-sm font-medium text-slate-300">Status</span>
+              <select
+                value={formValues.active ? 'true' : 'false'}
+                onChange={(event) => setFormValues((current) => ({ ...current, active: event.target.value === 'true' }))}
                 className="input-shell mt-3"
-              />
+              >
+                <option value="true">Active for investors</option>
+                <option value="false">Inactive</option>
+              </select>
             </label>
-            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                <ArrowRightLeft className="h-4 w-4 text-gold-soft" />
-                Passive referral income (%)
-              </span>
-              <input
-                type="number"
-                value={formValues.passiveReferralIncome}
-                onChange={updateNumber('passiveReferralIncome')}
-                className="input-shell mt-3"
-              />
+
+            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
+              <span className="text-sm font-medium text-slate-300">Description</span>
+              <textarea value={formValues.description} onChange={updateField('description')} className="input-shell mt-3 min-h-[96px] resize-none" />
             </label>
-            <label className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-300">
-                <Wallet className="h-4 w-4 text-gold-soft" />
-                Minimum wallet withdrawal
-              </span>
-              <input
-                type="number"
-                value={formValues.minWithdrawal}
-                onChange={updateNumber('minWithdrawal')}
-                className="input-shell mt-3"
-              />
-            </label>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={handleNewPlan} className="btn-secondary">
+              New Plan
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving || loading} className="btn-primary disabled:opacity-60">
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Plan'}
+            </button>
           </div>
         </SectionCard>
 
-        <SectionCard title="Workflow Controls" subtitle="Approval and safety toggles for admin operations.">
+        <SectionCard title="Interest Preview" subtitle="How the monthly credit is calculated for active investments.">
           <div className="space-y-4">
-            <ToggleRow
-              label="Admin approval required"
-              description="Keep withdrawals and sensitive actions pending until approved by admin."
-              checked={formValues.adminApprovalRequired}
-              onChange={toggleValue('adminApprovalRequired')}
-            />
-            <ToggleRow
-              label="Receipt verification required"
-              description="Require admin verification before crediting payment receipts."
-              checked={formValues.receiptVerificationRequired}
-              onChange={toggleValue('receiptVerificationRequired')}
-            />
-            <ToggleRow
-              label="Fraud monitoring enabled"
-              description="Continuously scan suspicious behavior across transactions and referrals."
-              checked={formValues.fraudMonitoringEnabled}
-              onChange={toggleValue('fraudMonitoringEnabled')}
-            />
-            <ToggleRow
-              label="Auto-freeze high risk users"
-              description="Automatically restrict accounts flagged with severe risk indicators."
-              checked={formValues.autoFreezeHighRiskUsers}
-              onChange={toggleValue('autoFreezeHighRiskUsers')}
-            />
-            <ToggleRow
-              label="Email alerts enabled"
-              description="Send operational alerts for approvals, rejections, and compliance flags."
-              checked={formValues.emailAlertsEnabled}
-              onChange={toggleValue('emailAlertsEnabled')}
-            />
-            <ToggleRow
-              label="Weekly summary enabled"
-              description="Deliver weekly management summaries for revenue and portfolio movement."
-              checked={formValues.weeklySummaryEnabled}
-              onChange={toggleValue('weeklySummaryEnabled')}
-            />
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-sm text-slate-400">Selected plan</p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="font-heading text-xl font-semibold text-white">{formValues.planName}</p>
+                <StatusBadge label={formValues.active ? 'ACTIVE' : 'INACTIVE'} />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-sm text-slate-400">Example monthly interest at minimum amount</p>
+              <p className="mt-3 font-heading text-2xl font-semibold text-white">
+                {formatCurrency(estimatedMonthlyInterest)}
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                {formatCurrency(formValues.minimumAmount)} x {formValues.monthlyInterestRate}% per month
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-blue-500/20 bg-blue-500/10 p-5 text-sm leading-7 text-blue-100">
+              When admin triggers monthly interest, backend credits each active investor wallet using
+              their own investment amount and the rate stored on that investment.
+            </div>
+
+            <button type="button" onClick={handleTriggerInterest} disabled={interestRunning} className="btn-primary w-full disabled:opacity-60">
+              <RefreshCw className="h-4 w-4" />
+              {interestRunning ? 'Running Interest...' : 'Trigger Monthly Interest'}
+            </button>
           </div>
         </SectionCard>
       </div>
-
-      <SectionCard title="Live Policy Preview" subtitle="Current business rule summary based on the staged settings values.">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Investment band</p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {formatCurrency(formValues.minInvestment)} to {formatCurrency(formValues.maxInvestment)}
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Monthly interest</p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {formValues.monthlyInterest}%
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Referral economics</p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {formValues.directReferralCommission}% direct / {formValues.passiveReferralIncome}%
-              passive
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="flex items-center gap-2 text-sm text-slate-400">
-              <Bell className="h-4 w-4 text-gold-soft" />
-              Withdrawal threshold
-            </p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {formatCurrency(formValues.minWithdrawal)}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-slate-400">
-            {saved
-              ? 'Settings have been staged successfully and are ready for backend persistence.'
-              : 'Changes on this screen are local UI state and ready for developer API integration.'}
-          </div>
-          <button type="button" onClick={handleSave} className="btn-primary">
-            <ShieldCheck className="h-4 w-4" />
-            Save Changes
-          </button>
-        </div>
-      </SectionCard>
     </div>
   );
 }

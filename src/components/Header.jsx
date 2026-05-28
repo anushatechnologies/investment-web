@@ -1,4 +1,18 @@
-import { Bell, ChevronDown, Menu } from 'lucide-react';
+import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import {
+  AppBar,
+  Avatar,
+  Badge,
+  Box,
+  Chip,
+  IconButton,
+  Paper,
+  Stack,
+  Toolbar,
+  Typography,
+} from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getRuntimeUserProfile } from '../utils/runtimeUserProfile';
 import { useEffect, useState } from 'react';
@@ -6,48 +20,52 @@ import { getNotifications } from '../services/api';
 
 const pageMeta = {
   '/': {
-    title: 'User Dashboard',
-    summary: 'Track your investments, wallet balance, interest credits, and referral performance.',
+    title: 'Investor Dashboard',
+    summary: 'Track capital, returns, payouts, and onboarding progress from one workspace.',
+  },
+  '/dashboard': {
+    title: 'Investor Dashboard',
+    summary: 'Track capital, returns, payouts, and onboarding progress from one workspace.',
   },
   '/investments': {
     title: 'My Investments',
-    summary: 'Review active plans, maturities, monthly returns, and portfolio allocation.',
+    summary: 'Review plan status, maturities, and the current application pipeline.',
   },
   '/wallet': {
     title: 'Wallet',
-    summary: 'Monitor credits, referral earnings, pending amounts, and wallet movement.',
+    summary: 'Monitor available balance, credits, pending amounts, and transaction movement.',
   },
   '/referral-network': {
     title: 'Referral Network',
-    summary: 'See your referral tree, referral list, earnings growth, and payout activity.',
+    summary: 'See your referral graph, network depth, and commission visibility.',
   },
   '/withdraw': {
-    title: 'Withdraw',
-    summary: 'Submit wallet withdrawals and review recent payout requests.',
+    title: 'Withdrawals',
+    summary: 'Submit payout requests and track where each withdrawal stands.',
   },
   '/payment-receipts': {
     title: 'Payment Receipts',
-    summary: 'Access uploaded receipts and status updates for recent investment payments.',
+    summary: 'Follow uploaded payment proofs and their investment verification status.',
   },
   '/notifications': {
     title: 'Notifications',
-    summary: 'Stay updated on credited interest, approvals, referral activity, and reminders.',
+    summary: 'Stay updated on KYC, payouts, receipts, and referral events.',
   },
   '/investment-status': {
     title: 'Investment Status',
-    summary: 'Check plan health, payout cycles, and maturity progress for each investment.',
+    summary: 'Understand where each investment sits in the lifecycle.',
   },
   '/support': {
     title: 'Support',
-    summary: 'Raise support tickets, track responses, and connect with the help desk.',
+    summary: 'Raise issues and keep communication with the operations team organized.',
   },
   '/profile': {
-    title: 'Profile',
-    summary: 'Manage your personal details, KYC identity, and bank information.',
+    title: 'Profile & Verification',
+    summary: 'Manage identity details, KYC submission, and payout banking data.',
   },
   '/settings': {
     title: 'Settings',
-    summary: 'Adjust dashboard alerts, security preferences, and investment notifications.',
+    summary: 'Tune alerts, security preferences, and account behavior.',
   },
 };
 
@@ -65,11 +83,11 @@ function Header({ onOpenSidebar }) {
       getNotifications()
         .then((response) => {
           if (!active) return;
-          const list = Array.isArray(response) ? response 
-                       : Array.isArray(response?.data) ? response.data 
-                       : Array.isArray(response?.items) ? response.items 
-                       : Array.isArray(response?.notifications) ? response.notifications 
-                       : [];
+          const list = Array.isArray(response) ? response
+            : Array.isArray(response?.data) ? response.data
+              : Array.isArray(response?.items) ? response.items
+                : Array.isArray(response?.notifications) ? response.notifications
+                  : [];
           const unread = list.filter((item) => !(item.read || item.isRead)).length;
           setUnreadCount(unread);
         })
@@ -80,7 +98,7 @@ function Header({ onOpenSidebar }) {
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // poll every 10 seconds
+    const interval = setInterval(fetchNotifications, 10000);
 
     return () => {
       active = false;
@@ -89,56 +107,81 @@ function Header({ onOpenSidebar }) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-2xl">
-      <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+    <AppBar
+      position="sticky"
+      color="transparent"
+      elevation={0}
+      sx={{
+        backdropFilter: 'blur(20px)',
+        backgroundColor: 'rgba(255,255,255,0.72)',
+        borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
+      }}
+    >
+      <Toolbar sx={{ px: { xs: 2, sm: 3, lg: 4 }, py: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <IconButton
               onClick={onOpenSidebar}
-              className="btn-secondary h-12 w-12 rounded-2xl p-0 lg:hidden"
+              sx={{
+                display: { lg: 'none' },
+                bgcolor: 'rgba(255,255,255,0.8)',
+                border: '1px solid rgba(226,232,240,0.9)',
+              }}
             >
-              <Menu className="h-5 w-5" />
-            </button>
+              <MenuRoundedIcon />
+            </IconButton>
             <div>
-              <p className="inline-flex rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white">
-                Web Dashboard
-              </p>
-              <h1 className="mt-3 font-heading text-2xl font-semibold tracking-tight text-slate-900">
+              <Chip label="Investor Workspace" color="primary" size="small" sx={{ borderRadius: '999px', fontWeight: 800, letterSpacing: '0.12em' }} />
+              <Typography variant="h4" sx={{ mt: 1, fontSize: { xs: 22, sm: 26 }, lineHeight: 1.15 }}>
                 {meta.title}
-              </h1>
-              <p className="mt-1 hidden text-sm text-slate-500 sm:block">{meta.summary}</p>
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' }, mt: 0.5, maxWidth: 680 }}>
+                {meta.summary}
+              </Typography>
             </div>
-          </div>
+          </Stack>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <button
-              type="button"
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <IconButton
               onClick={() => navigate('/notifications')}
-              className="relative inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
+              sx={{
+                width: 44,
+                height: 44,
+                bgcolor: 'rgba(255,255,255,0.82)',
+                border: '1px solid rgba(226,232,240,0.9)',
+              }}
             >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute right-2 top-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+              <Badge badgeContent={unreadCount} color="error">
+                <NotificationsRoundedIcon />
+              </Badge>
+            </IconButton>
 
-            <div className="glass-panel flex items-center gap-3 rounded-2xl px-3 py-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 font-heading text-sm font-bold text-white">
+            <Paper
+              elevation={0}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                px: 1.25,
+                py: 1,
+                borderRadius: '18px',
+                border: '1px solid rgba(226,232,240,0.9)',
+                bgcolor: 'rgba(255,255,255,0.82)',
+              }}
+            >
+              <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontWeight: 800 }}>
                 {userProfile.avatar}
-              </div>
-              <div className="hidden sm:block">
-                <p className="font-semibold text-slate-900">{userProfile.name}</p>
-                <p className="text-sm text-slate-500">{userProfile.membership}</p>
-              </div>
-              <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
+              </Avatar>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>{userProfile.name}</Typography>
+                <Typography variant="body2" color="text.secondary">{userProfile.membership}</Typography>
+              </Box>
+              <KeyboardArrowDownRoundedIcon sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }} />
+            </Paper>
+          </Stack>
+        </Stack>
+      </Toolbar>
+    </AppBar>
   );
 }
 

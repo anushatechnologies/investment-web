@@ -22,6 +22,14 @@ function Withdraw() {
   const [walletData, setWalletData] = useState({});
   const [message, setMessage] = useState('');
 
+  const mapWithdrawal = (item, index) => ({
+    id: item.id || item.withdrawalId || `WDL${index + 1}`,
+    requestedOn: item.requestedAt || item.requestedOn || item.createdAt || '-',
+    amount: Number(item.requestedAmount ?? item.amount ?? 0),
+    method: item.bankName ? 'Bank Transfer' : (item.method || item.mode || 'Bank Transfer'),
+    status: item.status || 'Pending',
+  });
+
   const minWithdrawal = Number(walletData.minWithdrawal ?? 1000);
 
   useEffect(() => {
@@ -29,16 +37,9 @@ function Withdraw() {
     Promise.all([getOwnWithdrawals(), getWallet()])
       .then(([withdrawalsRes, walletRes]) => {
         if (!active) return;
-        setHistory(
-          toArray(withdrawalsRes).map((item, index) => ({
-            id: item.id || item.withdrawalId || `WDL${index + 1}`,
-            requestedOn: item.requestedOn || item.createdAt || '-',
-            amount: Number(item.requestedAmount ?? item.amount ?? 0),
-            method: item.method || item.mode || 'Bank Transfer',
-            status: item.status || 'Pending',
-          })),
-        );
-        setWalletData(walletRes?.data || walletRes || {});
+        setHistory(toArray(withdrawalsRes).map(mapWithdrawal));
+        const walletPayload = walletRes?.data || walletRes || {};
+        setWalletData(walletPayload.wallet || walletPayload || {});
       })
       .catch(() => {
         if (!active) return;
@@ -61,15 +62,7 @@ function Withdraw() {
     try {
       await requestWithdrawal({ requestedAmount: value, method });
       const refreshed = await getOwnWithdrawals();
-      setHistory(
-        toArray(refreshed).map((item, index) => ({
-          id: item.id || item.withdrawalId || `WDL${index + 1}`,
-          requestedOn: item.requestedOn || item.createdAt || '-',
-          amount: Number(item.requestedAmount ?? item.amount ?? 0),
-          method: item.method || item.mode || 'Bank Transfer',
-          status: item.status || 'Pending',
-        })),
-      );
+      setHistory(toArray(refreshed).map(mapWithdrawal));
       setMessage(`Withdrawal request for ${formatCurrency(value)} submitted.`);
     } catch (error) {
       setMessage(error?.message || 'Unable to submit withdrawal request.');
