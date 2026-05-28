@@ -1,5 +1,7 @@
-import { AlertTriangle, Download, FileText, Pencil, Plus, TrendingUp, X } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, Download, FileText, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, CircularProgress, Stack } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   CartesianGrid,
   Line,
@@ -13,109 +15,133 @@ import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { auditTrail, reportPerformanceData, reportStats, scheduledReports } from '../data/adminData';
+import {
+  adminGetAllInvestments,
+  adminGetAuditLogs,
+  adminGetMonthlyReport,
+} from '../services/api';
+import {
+  asNumber,
+  buildMonthlySeries,
+  formatDateTime,
+  prettifyEnum,
+  toArray,
+} from '../utils/adminTransforms';
 import { formatCompactCurrency, formatCurrency, formatShortTick } from '../utils/formatters';
 
 const statIcons = [FileText, Download, AlertTriangle, TrendingUp];
 const statTones = ['blue', 'emerald', 'violet', 'amber'];
 
 function ReportsPage() {
-  const [reports, setReports] = useState(scheduledReports);
+  const [report, setReport] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [investments, setInvestments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editReportName, setEditReportName] = useState(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    frequency: 'Daily',
-    nextRun: '',
-    format: 'CSV',
-    status: 'Scheduled',
-  });
+  const loadReports = async () => {
+    setLoading(true);
+    setError('');
+    setMessage('');
+    try {
+      const [reportRes, auditRes, investmentsRes] = await Promise.all([
+        adminGetMonthlyReport(),
+        adminGetAuditLogs().catch(() => []),
+        adminGetAllInvestments().catch(() => []),
+      ]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSaveReport = (e) => {
-    e.preventDefault();
-    if (editReportName) {
-      setReports(reports.map(r => r.name === editReportName ? { ...r, ...formData } : r));
-    } else {
-      setReports([formData, ...reports]);
+      setReport(reportRes || {});
+      setAuditLogs(toArray(auditRes));
+      setInvestments(toArray(investmentsRes));
+    } catch (err) {
+      console.error('Failed to load reports page data', err);
+      setError(err.message || 'Failed to load reports data.');
+      setReport(null);
+      setAuditLogs([]);
+      setInvestments([]);
+    } finally {
+      setLoading(false);
     }
-    setIsModalOpen(false);
-    setEditReportName(null);
-    setMessage(`Successfully saved schedule for "${formData.name}".`);
   };
 
-  const handleEditClick = (row) => {
-    setFormData({
-      name: row.name,
-      frequency: row.frequency,
-      nextRun: row.nextRun,
-      format: row.format,
-      status: row.status,
-    });
-    setEditReportName(row.name);
-    setIsModalOpen(true);
-  };
+  useEffect(() => {
+    loadReports();
+  }, []);
 
-  const handleAddClick = () => {
-    setFormData({
-      name: '',
-      frequency: 'Daily',
-      nextRun: '15 May 2026, 09:00 AM',
-      format: 'CSV',
-      status: 'Scheduled',
-    });
-    setEditReportName(null);
-    setIsModalOpen(true);
-  };
+  const performanceData = useMemo(() => {
+    const investmentSeries = buildMonthlySeries(investments, (item) => item.investmentAmount, (item) => item.appliedAt);
+    return investmentSeries.map((item) => ({
+      month: item.label,
+      investments: item.value,
+      revenue: item.value,
+    }));
+  }, [investments]);
+
+  const reportStats = useMemo(() => ([
+    {
+      title: 'Monthly Reports',
+      value: report?.month ? 1 : 0,
+      note: report?.month ? `backend report available for ${report.month}` : 'monthly report unavailable',
+      valueType: 'number',
+    },
+    {
+      title: 'Audit Events',
+      value: auditLogs.length,
+      note: 'events returned from admin audit logs',
+      valueType: 'number',
+    },
+    {
+      title: 'Processed Withdrawals',
+      value: asNumber(report?.processedWithdrawals),
+      note: 'included in current monthly report',
+      valueType: 'number',
+    },
+    {
+      title: 'Interest Paid',
+      value: asNumber(report?.totalInterestPaid),
+      note: 'current monthly report payout total',
+      valueType: 'currency',
+      compact: true,
+    },
+  ]), [auditLogs.length, report]);
+
+  const auditRows = useMemo(
+    () => auditLogs.slice(0, 50).map((item) => ({
+      id: item.id,
+      event: prettifyEnum(item.action),
+      owner: item.actorUserId || 'System',
+      date: formatDateTime(item.occurredAt),
+      channel: item.entityType || 'N/A',
+      status: item.newValue || 'COMPLETED',
+    })),
+    [auditLogs],
+  );
 
   const handleExportCSV = () => {
-    const csvContent = "data:text/csv;charset=utf-8,Month,Revenue,Investments\n" + 
-      reportPerformanceData.map(e => `${e.month},${e.revenue},${e.investments}`).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "performance_snapshot.csv");
+    const rows = [
+      ['Metric', 'Value'],
+      ['Month', report?.month || 'N/A'],
+      ['Interest Records', asNumber(report?.interestRecords)],
+      ['Total Interest Paid', asNumber(report?.totalInterestPaid)],
+      ['Total Referral Commissions', asNumber(report?.totalReferralCommissions)],
+      ['New Investments', asNumber(report?.newInvestments)],
+      ['Processed Withdrawals', asNumber(report?.processedWithdrawals)],
+    ];
+    const csvContent = `data:text/csv;charset=utf-8,${rows.map((row) => row.join(',')).join('\n')}`;
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', `monthly_report_${report?.month || 'snapshot'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setMessage("Successfully exported performance snapshot as CSV.");
+    setMessage('Exported the live monthly report snapshot as CSV.');
   };
 
   const handleGeneratePDF = () => {
     window.print();
-    setMessage("Triggered browser print/PDF export dialog.");
+    setMessage('Opened the browser print dialog for PDF export.');
   };
-
-  const scheduledColumns = [
-    { key: 'name', label: 'Report Name' },
-    { key: 'frequency', label: 'Frequency' },
-    { key: 'nextRun', label: 'Next Run' },
-    { key: 'format', label: 'Format' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (row) => <StatusBadge label={row.status} />,
-    },
-    {
-      key: 'action',
-      label: 'Action',
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => handleEditClick(row)}
-          className="text-slate-400 transition hover:text-blue-500"
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
-      ),
-    },
-  ];
 
   const auditColumns = [
     { key: 'event', label: 'Event' },
@@ -131,16 +157,31 @@ function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-soft">
-          Reporting and audit exports
-        </p>
-        <h1 className="section-title mt-3">Reports</h1>
-        <p className="section-copy mt-3 max-w-3xl">
-          Generate investor, revenue, referral, and compliance reports with a dashboard-ready view
-          of exports and audit history.
-        </p>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-soft">
+            Reporting and audit exports
+          </p>
+          <h1 className="section-title mt-3">Reports</h1>
+          <p className="section-copy mt-3 max-w-3xl">
+            Live monthly reporting plus audit evidence from backend operations. Export actions are
+            browser-side, but the underlying values come from the admin APIs.
+          </p>
+        </div>
+
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon fontSize="small" />}
+          onClick={loadReports}
+          disabled={loading}
+          sx={{ alignSelf: { xs: 'flex-start', xl: 'center' }, borderRadius: '16px' }}
+        >
+          {loading ? 'Refreshing...' : 'Refresh Reports'}
+        </Button>
       </div>
+
+      {error && <Alert severity="error">{error}</Alert>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {reportStats.map((stat, index) => (
@@ -148,165 +189,114 @@ function ReportsPage() {
             key={stat.title}
             title={stat.title}
             value={stat.value}
-            change={stat.change}
             note={stat.note}
             icon={statIcons[index]}
             tone={statTones[index]}
-            valueType={index === 3 ? 'currency' : 'number'}
+            valueType={stat.valueType}
+            compact={stat.compact}
           />
         ))}
       </div>
 
       <SectionCard
         title="Performance Snapshot"
-        subtitle="Compare revenue and total invested amount trends across recent months."
-        action={
+        subtitle="Recent monthly capital trend, paired with live monthly report export actions."
+        action={(
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="btn-secondary"
-            >
+            <button type="button" onClick={handleExportCSV} className="btn-secondary">
               <Download className="h-4 w-4" />
               Export CSV
             </button>
-            <button
-              type="button"
-              onClick={handleGeneratePDF}
-              className="btn-primary"
-            >
+            <button type="button" onClick={handleGeneratePDF} className="btn-primary">
               <FileText className="h-4 w-4" />
               Generate PDF
             </button>
           </div>
-        }
+        )}
       >
         <div className="h-[340px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={reportPerformanceData}>
-              <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-              <XAxis dataKey="month" stroke="#64748b" tickLine={false} axisLine={false} />
-              <YAxis
-                stroke="#64748b"
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={formatShortTick}
-              />
-              <Tooltip
-                formatter={(value, name) => [
-                  name === 'revenue' ? formatCurrency(value) : formatCompactCurrency(value),
-                  name === 'revenue' ? 'Revenue' : 'Invested amount',
-                ]}
-                contentStyle={{
-                  background: 'rgba(7, 17, 38, 0.95)',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  borderRadius: '18px',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dot={{ r: 4, fill: '#3b82f6' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="investments"
-                stroke="#f7b500"
-                strokeWidth={3}
-                dot={{ r: 4, fill: '#f7b500' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <Stack alignItems="center" justifyContent="center" sx={{ height: '100%' }}>
+              <CircularProgress />
+            </Stack>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceData}>
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                <XAxis dataKey="month" stroke="#64748b" tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#64748b"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={formatShortTick}
+                />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === 'revenue' ? formatCurrency(value) : formatCompactCurrency(value),
+                    name === 'revenue' ? 'Capital trend' : 'Invested amount',
+                  ]}
+                  contentStyle={{
+                    background: 'rgba(7, 17, 38, 0.95)',
+                    border: '1px solid rgba(148, 163, 184, 0.18)',
+                    borderRadius: '18px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#3b82f6' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="investments"
+                  stroke="#f7b500"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#f7b500' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </SectionCard>
-      
-      {message && <p className="text-sm text-emerald-400 font-medium">{message}</p>}
 
-      <DataTable
-        title="Scheduled Reports"
-        description="Monitor delivery cadence for operational and compliance report exports."
-        data={reports}
-        columns={scheduledColumns}
-        searchableKeys={['name', 'frequency', 'format']}
-        searchPlaceholder="Search scheduled reports..."
-        filterKey="status"
-        filterOptions={['Scheduled', 'Active', 'Under Review']}
-        itemsPerPage={20}
-        actions={[{ label: 'Schedule Report', icon: Plus, variant: 'primary', onClick: handleAddClick }]}
-      />
+      {message && <p className="text-sm font-medium text-emerald-400">{message}</p>}
+
+      <SectionCard
+        title="Current Monthly Report"
+        subtitle="Raw values returned by the backend report endpoint."
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-sm text-slate-400">Month</p>
+            <p className="mt-3 font-heading text-xl font-semibold text-white">{report?.month || 'N/A'}</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-sm text-slate-400">Interest Records</p>
+            <p className="mt-3 font-heading text-xl font-semibold text-white">{asNumber(report?.interestRecords)}</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-sm text-slate-400">Referral Commissions</p>
+            <p className="mt-3 font-heading text-xl font-semibold text-white">
+              {formatCurrency(asNumber(report?.totalReferralCommissions))}
+            </p>
+          </div>
+        </div>
+      </SectionCard>
 
       <DataTable
         title="Audit Trail"
-        description="Recent report-related actions and delivery events across admin teams."
-        data={auditTrail}
+        description="Recent backend audit events across admin workflows."
+        data={auditRows}
         columns={auditColumns}
         searchableKeys={['event', 'owner', 'channel']}
         searchPlaceholder="Search audit events..."
         filterKey="status"
-        filterOptions={['Completed', 'Pending']}
+        filterOptions={Array.from(new Set(auditRows.map((row) => row.status))).sort()}
+        emptyMessage={loading ? 'Loading audit trail...' : 'No audit events found.'}
         itemsPerPage={20}
       />
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-md overflow-hidden border border-white/10 bg-[#08152f]">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <h3 className="font-heading text-lg font-semibold text-white">{editReportName ? 'Configure Schedule' : 'New Schedule'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveReport} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Report Name</label>
-                  <input required name="name" value={formData.name} onChange={handleInputChange} disabled={!!editReportName} className="input-shell w-full disabled:opacity-50" placeholder="e.g. Daily revenue extract" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Frequency</label>
-                  <select name="frequency" value={formData.frequency} onChange={handleInputChange} className="input-shell w-full appearance-none">
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="Monthly">Monthly</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Next Run Schedule</label>
-                  <input required name="nextRun" value={formData.nextRun} onChange={handleInputChange} className="input-shell w-full" placeholder="e.g. 15 May 2026, 09:00 AM" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Format</label>
-                    <select name="format" value={formData.format} onChange={handleInputChange} className="input-shell w-full appearance-none">
-                      <option value="CSV">CSV</option>
-                      <option value="XLSX">XLSX</option>
-                      <option value="PDF">PDF</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Status</label>
-                    <select name="status" value={formData.status} onChange={handleInputChange} className="input-shell w-full appearance-none">
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="Active">Active</option>
-                      <option value="Under Review">Under Review</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  {editReportName ? 'Save Schedule' : 'Schedule'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

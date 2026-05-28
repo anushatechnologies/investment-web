@@ -1,75 +1,113 @@
-import { ShieldCheck, UserPlus, Users, X, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { ShieldCheck, UserPlus, Users, X, Pencil, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import DataTable from '../components/DataTable';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { investorsData, investorsPageStats } from '../data/adminData';
+import { adminGetAllInvestments, adminGetUsers, adminUpdateUser } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
-const statIcons = [Users, Users, ShieldCheck, UserPlus];
-const statTones = ['blue', 'emerald', 'violet', 'cyan'];
+function toArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.content)) return payload.content;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+}
 
 function InvestorsPage() {
-  const [investors, setInvestors] = useState(investorsData);
+  const [investors, setInvestors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editInvestorId, setEditInvestorId] = useState(null);
-  
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     city: '',
-    investmentAmount: '',
-    kyc: 'Pending',
-    status: 'Pending',
+    investmentAmount: 0,
+    kyc: 'NOT_SUBMITTED',
+    status: 'PENDING',
   });
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const loadInvestors = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [usersRes, investmentsRes] = await Promise.all([
+        adminGetUsers(),
+        adminGetAllInvestments().catch(() => []),
+      ]);
+
+      const users = toArray(usersRes);
+      const investments = toArray(investmentsRes);
+
+      const totalByInvestor = investments.reduce((acc, item) => {
+        const userId = item.investorUserId;
+        if (!userId) return acc;
+        acc[userId] = (acc[userId] || 0) + Number(item.investmentAmount ?? 0);
+        return acc;
+      }, {});
+
+      const mapped = users.map((user) => ({
+        id: user.id,
+        name: user.fullName || user.name || 'N/A',
+        email: user.email || 'N/A',
+        phone: user.mobileNumber || user.phoneNumber || 'N/A',
+        city: user.address || user.city || 'N/A',
+        investmentAmount: totalByInvestor[user.id] || 0,
+        kyc: user.kycStatus || 'NOT_SUBMITTED',
+        status: user.accountStatus || 'PENDING',
+        joinDate: user.createdAt
+          ? new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : 'N/A',
+        raw: user,
+      }));
+
+      setInvestors(mapped);
+    } catch (err) {
+      console.error('Failed to load investors', err);
+      setError(err.message || 'Failed to load investors.');
+      setInvestors([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddInvestor = (e) => {
-    e.preventDefault();
-    
-    if (editInvestorId) {
-      setInvestors(investors.map(inv => inv.id === editInvestorId ? {
-        ...inv,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        city: formData.city,
-        investmentAmount: Number(formData.investmentAmount) || 0,
-        kyc: formData.kyc,
-        status: formData.status,
-      } : inv));
-    } else {
-      const newId = `INV${String(investors.length + 1).padStart(3, '0')}`;
-      const newInvestor = {
-        id: newId,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        city: formData.city,
-        investmentAmount: Number(formData.investmentAmount) || 0,
-        kyc: formData.kyc,
-        status: formData.status,
-        joinDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      };
-      setInvestors([newInvestor, ...investors]);
-    }
+  useEffect(() => {
+    loadInvestors();
+  }, []);
 
-    setIsModalOpen(false);
-    setEditInvestorId(null);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      city: '',
-      investmentAmount: '',
-      kyc: 'Pending',
-      status: 'Pending',
-    });
+  const stats = useMemo(() => {
+    const total = investors.length;
+    const active = investors.filter((item) => String(item.status).toUpperCase() === 'ACTIVE').length;
+    const kycApproved = investors.filter((item) => String(item.kyc).toUpperCase() === 'APPROVED').length;
+    const pending = investors.filter((item) => String(item.status).toUpperCase() === 'PENDING').length;
+
+    return [
+      { title: 'Total Investors', value: total, note: 'loaded from admin users API' },
+      { title: 'Active Accounts', value: active, note: 'account status is ACTIVE' },
+      { title: 'KYC Approved', value: kycApproved, note: 'ready for next onboarding steps' },
+      { title: 'Pending Accounts', value: pending, note: 'still under onboarding/review' },
+    ];
+  }, [investors]);
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleEditClick = (row) => {
@@ -84,6 +122,30 @@ function InvestorsPage() {
     });
     setEditInvestorId(row.id);
     setIsModalOpen(true);
+  };
+
+  const handleSaveInvestor = async (event) => {
+    event.preventDefault();
+    if (!editInvestorId) {
+      setError('Creating a new investor is not supported by the current backend admin API.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    try {
+      await adminUpdateUser(editInvestorId, {
+        accountStatus: formData.status,
+      });
+      setIsModalOpen(false);
+      setEditInvestorId(null);
+      await loadInvestors();
+    } catch (err) {
+      console.error('Failed to update investor status', err);
+      setError(err.message || 'Failed to update investor status.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const columns = [
@@ -121,6 +183,7 @@ function InvestorsPage() {
       label: 'Actions',
       render: (row) => (
         <button
+          type="button"
           onClick={() => handleEditClick(row)}
           className="text-slate-400 transition hover:text-blue-500"
         >
@@ -143,16 +206,17 @@ function InvestorsPage() {
         </p>
       </div>
 
+      {error && <Alert severity="error">{error}</Alert>}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {investorsPageStats.map((stat, index) => (
+        {stats.map((stat, index) => (
           <StatCard
             key={stat.title}
             title={stat.title}
             value={stat.value}
-            change={stat.change}
             note={stat.note}
-            icon={statIcons[index]}
-            tone={statTones[index]}
+            icon={[Users, Users, ShieldCheck, UserPlus][index]}
+            tone={['blue', 'emerald', 'violet', 'cyan'][index]}
             valueType="number"
           />
         ))}
@@ -160,91 +224,60 @@ function InvestorsPage() {
 
       <DataTable
         title="Investors Directory"
-        description="Track investor growth, verify KYC submissions, and spot inactive accounts quickly."
+        description="Live investor list from the backend admin APIs."
         data={investors}
         columns={columns}
         searchableKeys={['id', 'name', 'email', 'phone', 'city']}
         searchPlaceholder="Search by name, email, phone, or city..."
         filterKey="status"
-        filterOptions={['Active', 'Pending', 'Inactive']}
-        actions={[{ label: 'Add Investor', icon: UserPlus, variant: 'primary', onClick: () => {
-          setEditInvestorId(null);
-          setFormData({
-            name: '',
-            email: '',
-            phone: '',
-            city: '',
-            investmentAmount: '',
-            kyc: 'Pending',
-            status: 'Pending',
-          });
-          setIsModalOpen(true);
-        } }]}
+        filterOptions={['ACTIVE', 'PENDING', 'SUSPENDED', 'DEACTIVATED']}
+        actions={[
+          {
+            label: 'Refresh',
+            icon: RefreshCw,
+            variant: 'secondary',
+            onClick: loadInvestors,
+          },
+        ]}
+        emptyMessage={loading ? 'Loading investors...' : 'No investors found.'}
         itemsPerPage={20}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-lg overflow-hidden border border-white/10 bg-[#08152f]">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <h3 className="font-heading text-lg font-semibold text-white">
-                {editInvestorId ? 'Edit Investor' : 'Add New Investor'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddInvestor} className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Name</label>
-                  <input required name="name" value={formData.name} onChange={handleInputChange} className="input-shell" placeholder="Full Name" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Email</label>
-                  <input required type="email" name="email" value={formData.email} onChange={handleInputChange} className="input-shell" placeholder="Email Address" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Phone</label>
-                  <input required name="phone" value={formData.phone} onChange={handleInputChange} className="input-shell" placeholder="Phone Number" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">City</label>
-                  <input required name="city" value={formData.city} onChange={handleInputChange} className="input-shell" placeholder="City" />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Investment Amount</label>
-                  <input required type="number" name="investmentAmount" value={formData.investmentAmount} onChange={handleInputChange} className="input-shell" placeholder="e.g. 50000" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">KYC Status</label>
-                  <select name="kyc" value={formData.kyc} onChange={handleInputChange} className="input-shell appearance-none">
-                    <option value="Pending">Pending</option>
-                    <option value="Verified">Verified</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Status</label>
-                  <select name="status" value={formData.status} onChange={handleInputChange} className="input-shell appearance-none">
-                    <option value="Active">Active</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  {editInvestorId ? 'Save Changes' : 'Add Investor'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{editInvestorId ? 'Investor Details' : 'Add Investor'}</DialogTitle>
+        <form onSubmit={handleSaveInvestor}>
+          <DialogContent>
+            <Stack spacing={2}>
+              <TextField label="Name" name="name" value={formData.name} onChange={handleInputChange} disabled />
+              <TextField label="Email" name="email" value={formData.email} onChange={handleInputChange} disabled />
+              <TextField label="Phone" name="phone" value={formData.phone} onChange={handleInputChange} disabled />
+              <TextField label="City / Address" name="city" value={formData.city} onChange={handleInputChange} disabled />
+              <TextField label="Investment Amount" name="investmentAmount" value={formatCurrency(Number(formData.investmentAmount || 0))} disabled />
+              <TextField label="KYC Status" name="kyc" value={formData.kyc} disabled />
+              <TextField
+                select
+                label="Account Status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                <MenuItem value="ACTIVE">ACTIVE</MenuItem>
+                <MenuItem value="PENDING">PENDING</MenuItem>
+                <MenuItem value="DEACTIVATED">DEACTIVATED</MenuItem>
+              </TextField>
+              <Typography variant="body2" color="text.secondary">
+                The backend admin API currently supports account status updates here. Editing profile fields from this screen is not exposed by the backend.
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={saving}>
+              {saving ? 'Saving...' : 'Save Status'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </div>
   );
 }

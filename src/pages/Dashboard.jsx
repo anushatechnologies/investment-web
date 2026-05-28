@@ -64,10 +64,17 @@ function Dashboard() {
     };
   }, []);
 
-  const totalInvestment = Number(dashboard.totalInvestment ?? 0);
-  const walletBalance = Number(dashboard.walletBalance ?? 0);
-  const monthlyInterest = Number(dashboard.monthlyInterest ?? 0);
-  const referralEarnings = Number(dashboard.referralEarnings ?? 0);
+  const totalInvestment = Number(dashboard.totalInvested ?? dashboard.totalInvestment ?? 0);
+  const walletBalance = Number(
+    dashboard.wallet?.availableBalance ??
+    dashboard.availableBalance ??
+    dashboard.walletBalance ??
+    0,
+  );
+  const monthlyInterest = Number(dashboard.totalInterestEarned ?? dashboard.monthlyInterest ?? 0);
+  const referralEarnings = Number(
+    referralCommissions.reduce((sum, item) => sum + Number(item.commissionAmount ?? item.amount ?? 0), 0),
+  );
 
   const dashboardStats = [
     { title: 'Total Investment', value: totalInvestment, change: null, note: 'across active plans', icon: BriefcaseBusiness, tone: 'blue' },
@@ -84,13 +91,16 @@ function Dashboard() {
   const monthlyInterestData = useMemo(() => {
     const source = toArray(dashboard.monthlyInterestData, null);
     if (source.length) return source;
-    return referralCommissions.slice(0, 6).map((item, index) => ({ month: item.month || `M${index + 1}`, interest: Number(item.amount ?? 0) }));
+    return referralCommissions.slice(0, 6).map((item, index) => ({
+      month: item.month || item.commissionMonth || `M${index + 1}`,
+      interest: Number(item.commissionAmount ?? item.amount ?? 0),
+    }));
   }, [dashboard.monthlyInterestData, referralCommissions]);
 
   const donutData = [
-    { name: 'Available', value: Number(dashboard.availableBalance ?? walletBalance), fill: '#2563eb' },
-    { name: 'Pending', value: Number(dashboard.pendingBalance ?? 0), fill: '#93c5fd' },
-    { name: 'Locked', value: Number(dashboard.lockedBalance ?? 0), fill: '#1d4ed8' },
+    { name: 'Available', value: Number(dashboard.wallet?.availableBalance ?? dashboard.availableBalance ?? walletBalance), fill: '#2563eb' },
+    { name: 'Pending', value: Number(dashboard.wallet?.pendingBalance ?? dashboard.pendingBalance ?? 0), fill: '#93c5fd' },
+    { name: 'Locked', value: Number(dashboard.wallet?.lockedBalance ?? dashboard.lockedBalance ?? 0), fill: '#1d4ed8' },
   ];
 
   const recentTransactions = walletTransactions.slice(0, 3);

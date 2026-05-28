@@ -1,16 +1,11 @@
-import {
-  ArrowRightLeft,
-  Banknote,
-  BriefcaseBusiness,
-  Percent,
-  ShieldCheck,
-  Users,
-  Wallet,
-} from 'lucide-react';
+import { AlertTriangle, BriefcaseBusiness, ShieldCheck, Users, Wallet } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -18,62 +13,170 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { useState } from 'react';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import {
-  dashboardInvestmentSplit,
-  dashboardRevenueData,
-  dashboardSecondaryMetrics,
-  platformRules,
-} from '../data/adminData';
+  adminGetAllInvestments,
+  adminGetDashboard,
+  adminGetMonthlyReport,
+} from '../services/api';
+import { buildMonthlySeries, prettifyEnum, toArray, asNumber } from '../utils/adminTransforms';
 import { formatCompactCurrency, formatCurrency, formatNumber, formatShortTick } from '../utils/formatters';
 
-const primaryStats = [
-  {
-    title: 'Total Investors',
-    value: 1245,
-    change: 13.5,
-    note: 'vs last month',
-    icon: Users,
-    tone: 'blue',
-    valueType: 'number',
-  },
-  {
-    title: 'Total Revenue',
-    value: 12500000,
-    change: 18.7,
-    note: 'vs last month',
-    icon: Banknote,
-    tone: 'emerald',
-    valueType: 'currency',
-  },
-  {
-    title: 'Active Investments',
-    value: 856,
-    change: 10.3,
-    note: 'vs last month',
-    icon: BriefcaseBusiness,
-    tone: 'violet',
-    valueType: 'number',
-  },
-  {
-    title: 'Pending Withdrawals',
-    value: 32,
-    change: -5.2,
-    note: 'vs last month',
-    icon: Wallet,
-    tone: 'amber',
-    valueType: 'number',
-  },
-];
-
-const secondaryIcons = [ArrowRightLeft, Percent, Wallet, ShieldCheck];
-const secondaryTones = ['blue', 'violet', 'emerald', 'rose'];
+const investmentPalette = ['#2563eb', '#14b8a6', '#f59e0b', '#7c3aed', '#e11d48', '#64748b'];
 
 function DashboardPage() {
-  const [period, setPeriod] = useState('This Month');
-  const totalInvestments = dashboardInvestmentSplit.reduce((sum, item) => sum + item.value, 0);
+  const [dashboard, setDashboard] = useState(null);
+  const [monthlyReport, setMonthlyReport] = useState(null);
+  const [investments, setInvestments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [dashboardRes, reportRes, investmentsRes] = await Promise.all([
+        adminGetDashboard(),
+        adminGetMonthlyReport().catch(() => ({})),
+        adminGetAllInvestments().catch(() => []),
+      ]);
+
+      setDashboard(dashboardRes || {});
+      setMonthlyReport(reportRes || {});
+      setInvestments(toArray(investmentsRes));
+    } catch (err) {
+      console.error('Failed to load admin dashboard', err);
+      setError(err.message || 'Failed to load admin dashboard.');
+      setDashboard(null);
+      setMonthlyReport(null);
+      setInvestments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const primaryStats = useMemo(() => ([
+    {
+      title: 'Total Investors',
+      value: asNumber(dashboard?.totalInvestors),
+      note: 'live investor accounts from admin dashboard',
+      icon: Users,
+      tone: 'blue',
+      valueType: 'number',
+    },
+    {
+      title: 'Total AUM',
+      value: asNumber(dashboard?.totalAum),
+      note: 'active capital currently under management',
+      icon: Wallet,
+      tone: 'emerald',
+      valueType: 'currency',
+      compact: true,
+    },
+    {
+      title: 'Active Investments',
+      value: asNumber(dashboard?.activeInvestments),
+      note: 'portfolios currently earning',
+      icon: BriefcaseBusiness,
+      tone: 'violet',
+      valueType: 'number',
+    },
+    {
+      title: 'Pending Withdrawals',
+      value: asNumber(dashboard?.pendingWithdrawals),
+      note: 'requests waiting for admin action',
+      icon: ShieldCheck,
+      tone: 'amber',
+      valueType: 'number',
+    },
+  ]), [dashboard]);
+
+  const secondaryStats = useMemo(() => ([
+    {
+      title: 'Pending KYC',
+      value: asNumber(dashboard?.pendingKycQueue),
+      note: 'kyc submissions in review queue',
+      icon: ShieldCheck,
+      tone: 'cyan',
+      valueType: 'number',
+    },
+    {
+      title: 'Pending Receipts',
+      value: asNumber(dashboard?.pendingReceipts),
+      note: 'investment receipts awaiting verification',
+      icon: BriefcaseBusiness,
+      tone: 'amber',
+      valueType: 'number',
+    },
+    {
+      title: 'Open Fraud Alerts',
+      value: asNumber(dashboard?.openFraudAlerts),
+      note: 'risk incidents still unresolved',
+      icon: AlertTriangle,
+      tone: 'rose',
+      valueType: 'number',
+    },
+    {
+      title: 'Interest Paid This Month',
+      value: asNumber(monthlyReport?.totalInterestPaid),
+      note: monthlyReport?.month ? `current cycle ${monthlyReport.month}` : 'current monthly report',
+      icon: Wallet,
+      tone: 'blue',
+      valueType: 'currency',
+      compact: true,
+    },
+  ]), [dashboard, monthlyReport]);
+
+  const monthlyInvestmentData = useMemo(
+    () => buildMonthlySeries(investments, (item) => item.investmentAmount, (item) => item.appliedAt),
+    [investments],
+  );
+
+  const investmentStatusData = useMemo(() => {
+    const counts = investments.reduce((acc, item) => {
+      const key = item.status || 'UNKNOWN';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts).map(([name, value], index) => ({
+      name: prettifyEnum(name),
+      value,
+      fill: investmentPalette[index % investmentPalette.length],
+    }));
+  }, [investments]);
+
+  const totalInvestmentRecords = investmentStatusData.reduce((sum, item) => sum + item.value, 0);
+
+  const operationalCards = useMemo(() => ([
+    {
+      title: 'New Investments',
+      value: asNumber(monthlyReport?.newInvestments),
+      note: 'applications raised in the current month',
+    },
+    {
+      title: 'Interest Records',
+      value: asNumber(monthlyReport?.interestRecords),
+      note: 'interest calculations completed this month',
+    },
+    {
+      title: 'Referral Commissions',
+      value: asNumber(monthlyReport?.totalReferralCommissions),
+      note: 'monthly commission payout generated',
+      currency: true,
+    },
+    {
+      title: 'Processed Withdrawals',
+      value: asNumber(monthlyReport?.processedWithdrawals),
+      note: 'withdrawals completed platform-wide',
+    },
+  ]), [monthlyReport]);
 
   return (
     <div className="space-y-6">
@@ -84,16 +187,24 @@ function DashboardPage() {
           </p>
           <h1 className="section-title mt-3">Main Dashboard</h1>
           <p className="section-copy mt-3 max-w-3xl">
-            Premium control center for investor onboarding, revenue performance, referral
-            commissions, wallet payouts, payment verification, and fraud prevention workflows.
+            Live operating view across onboarding, investment activation, withdrawal queues, and
+            fraud exposure using the backend admin APIs.
           </p>
         </div>
 
-        <div className="glass-panel rounded-3xl px-5 py-4 text-sm text-slate-300">
-          Minimum investment {formatCurrency(platformRules.minInvestment)} and maximum investment{' '}
-          {formatCurrency(platformRules.maxInvestment)} are enforced across active plans.
-        </div>
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon fontSize="small" />}
+          onClick={loadDashboard}
+          disabled={loading}
+          sx={{ alignSelf: { xs: 'flex-start', xl: 'center' }, borderRadius: '16px' }}
+        >
+          {loading ? 'Refreshing...' : 'Refresh Dashboard'}
+        </Button>
       </div>
+
+      {error && <Alert severity="error">{error}</Alert>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {primaryStats.map((stat) => (
@@ -103,71 +214,71 @@ function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(340px,0.8fr)]">
         <SectionCard
-          title="Revenue Overview"
-          subtitle="Daily realized revenue performance across investor interest collections and referral income."
-          action={
-            <button
-              type="button"
-              onClick={() => setPeriod((current) => (current === 'This Month' ? 'Last Month' : 'This Month'))}
-              className="btn-secondary"
-            >
-              {period}
-            </button>
-          }
+          title="Investment Flow"
+          subtitle="Month-by-month investment applications based on live applied dates."
         >
           <div className="h-[340px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dashboardRevenueData}>
-                <defs>
-                  <linearGradient id="dashboardRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.48} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                <XAxis dataKey="day" stroke="#64748b" tickLine={false} axisLine={false} />
-                <YAxis
-                  stroke="#64748b"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={formatShortTick}
-                />
-                <Tooltip
-                  cursor={{ stroke: 'rgba(59,130,246,0.3)', strokeWidth: 1 }}
-                  formatter={(value) => [formatCurrency(value), 'Revenue']}
-                  contentStyle={{
-                    background: 'rgba(7, 17, 38, 0.95)',
-                    border: '1px solid rgba(148, 163, 184, 0.18)',
-                    borderRadius: '18px',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  fill="url(#dashboardRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <Stack alignItems="center" justifyContent="center" sx={{ height: '100%' }}>
+                <CircularProgress />
+              </Stack>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyInvestmentData}>
+                  <defs>
+                    <linearGradient id="dashboardInvestments" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.48} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                  <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="#64748b"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatShortTick}
+                  />
+                  <Tooltip
+                    formatter={(value) => [formatCurrency(value), 'Applied amount']}
+                    contentStyle={{
+                      background: 'rgba(7, 17, 38, 0.95)',
+                      border: '1px solid rgba(148, 163, 184, 0.18)',
+                      borderRadius: '18px',
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    fill="url(#dashboardInvestments)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </SectionCard>
 
         <SectionCard
-          title="Investment Overview"
-          subtitle="Live snapshot of active, matured, pending, and under-review allocations."
+          title="Investment Status Mix"
+          subtitle="Current portfolio distribution by backend investment status."
         >
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_180px] xl:grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_180px]">
             <div className="relative mx-auto h-[280px] w-full max-w-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={dashboardInvestmentSplit}
+                    data={investmentStatusData}
                     innerRadius={78}
                     outerRadius={112}
                     paddingAngle={4}
                     dataKey="value"
-                  />
+                  >
+                    {investmentStatusData.map((item) => (
+                      <Cell key={item.name} fill={item.fill} />
+                    ))}
+                  </Pie>
                   <Tooltip
                     formatter={(value, name) => [formatNumber(value), name]}
                     contentStyle={{
@@ -180,14 +291,14 @@ function DashboardPage() {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="font-heading text-4xl font-semibold text-white">
-                  {formatNumber(totalInvestments)}
+                  {formatNumber(totalInvestmentRecords)}
                 </span>
-                <span className="text-sm text-slate-400">Total portfolios</span>
+                <span className="text-sm text-slate-400">Total records</span>
               </div>
             </div>
 
             <div className="space-y-3">
-              {dashboardInvestmentSplit.map((item) => (
+              {investmentStatusData.length > 0 ? investmentStatusData.map((item) => (
                 <div
                   key={item.name}
                   className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
@@ -198,74 +309,42 @@ function DashboardPage() {
                   </div>
                   <span className="text-sm text-slate-400">{formatNumber(item.value)}</span>
                 </div>
-              ))}
+              )) : (
+                <Typography variant="body2" color="text.secondary">
+                  No investment records are available yet.
+                </Typography>
+              )}
             </div>
           </div>
         </SectionCard>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {dashboardSecondaryMetrics.map((stat, index) => (
-          <StatCard
-            key={stat.title}
-            title={stat.title}
-            value={stat.value}
-            change={stat.change}
-            note={stat.note}
-            icon={secondaryIcons[index]}
-            tone={secondaryTones[index]}
-            valueType="currency"
-          />
+        {secondaryStats.map((stat) => (
+          <StatCard key={stat.title} {...stat} />
         ))}
       </div>
 
       <SectionCard
-        title="Platform Guardrails"
-        subtitle="Core business rules reflected across investments, referrals, payment verification, and withdrawals."
+        title="Current Month Snapshot"
+        subtitle="Operational output from the live monthly report endpoint."
       >
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Minimum investment</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {formatCurrency(platformRules.minInvestment)}
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Maximum investment</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {formatCurrency(platformRules.maxInvestment)}
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Monthly interest</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {platformRules.monthlyInterest}%
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Direct referral commission</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {platformRules.directReferralCommission}%
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Monthly passive referral income</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {platformRules.passiveReferralIncome}%
-            </p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Minimum wallet withdrawal</p>
-            <p className="mt-3 font-heading text-2xl font-semibold text-white">
-              {formatCurrency(platformRules.minWithdrawal)}
-            </p>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {operationalCards.map((card) => (
+            <div key={card.title} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-sm text-slate-400">{card.title}</p>
+              <p className="mt-3 font-heading text-2xl font-semibold text-white">
+                {card.currency ? formatCompactCurrency(card.value) : formatNumber(card.value)}
+              </p>
+              <p className="mt-2 text-sm text-slate-400">{card.note}</p>
+            </div>
+          ))}
         </div>
 
         <div className="mt-5 rounded-3xl border border-blue-500/20 bg-blue-500/10 p-5 text-sm leading-7 text-blue-100">
-          All withdrawals require admin approval, investment receipts must be verified by admin
-          before crediting, and fraud monitoring plus user management remain enabled for every
-          account lifecycle stage.
+          {monthlyReport?.month
+            ? `Current reporting month: ${monthlyReport.month}. This panel is sourced from /api/admin/reports/monthly and updates as backend operations are processed.`
+            : 'Monthly report data is unavailable right now, but the rest of the dashboard remains live.'}
         </div>
       </SectionCard>
     </div>

@@ -1,97 +1,161 @@
-import { Banknote, BriefcaseBusiness, ShieldCheck, TrendingUp, X, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { Banknote, BriefcaseBusiness, Eye, ShieldCheck, TrendingUp } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+} from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { investmentsData, investmentsPageStats, platformRules } from '../data/adminData';
-import { formatCurrency } from '../utils/formatters';
+import { adminGetAllInvestments, adminGetUsers } from '../services/api';
+import {
+  asNumber,
+  formatDate,
+  formatDateTime,
+  prettifyEnum,
+  toArray,
+} from '../utils/adminTransforms';
+import { formatCompactCurrency, formatCurrency, formatNumber } from '../utils/formatters';
 
 const statIcons = [BriefcaseBusiness, Banknote, TrendingUp, ShieldCheck];
 const statTones = ['blue', 'emerald', 'violet', 'amber'];
 
 function InvestmentsPage() {
-  const [investments, setInvestments] = useState(investmentsData);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editInvestmentId, setEditInvestmentId] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    investor: '',
-    product: '',
-    amount: '',
-    interestRate: '',
-    referralSource: '',
-    startDate: '',
-    maturityDate: '',
-    status: 'Active',
-  });
+  const [investments, setInvestments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedInvestment, setSelectedInvestment] = useState(null);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const loadInvestments = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [investmentsRes, usersRes] = await Promise.all([
+        adminGetAllInvestments(),
+        adminGetUsers().catch(() => []),
+      ]);
 
-  const handleUpdateInvestment = (e) => {
-    e.preventDefault();
-    if (editInvestmentId) {
-      setInvestments(investments.map(inv => inv.id === editInvestmentId ? {
-        ...inv,
-        investor: formData.investor,
-        product: formData.product,
-        amount: Number(formData.amount) || 0,
-        interestRate: formData.interestRate,
-        referralSource: formData.referralSource,
-        startDate: formData.startDate,
-        maturityDate: formData.maturityDate,
-        status: formData.status,
-      } : inv));
+      const investmentItems = toArray(investmentsRes);
+      const users = toArray(usersRes);
+      const userMap = new Map(users.map((user) => [user.id, user]));
+
+      const mapped = investmentItems.map((item) => {
+        const investor = userMap.get(item.investorUserId);
+        const amount = asNumber(item.investmentAmount);
+        const monthlyInterestRate = asNumber(item.monthlyInterestRate);
+        const estimatedMonthlyInterest = (amount * monthlyInterestRate) / 100;
+
+        return {
+          id: item.id,
+          investorName: investor?.fullName || investor?.name || 'Unknown Investor',
+          investorEmail: investor?.email || 'N/A',
+          investorPhone: investor?.mobileNumber || 'N/A',
+          planId: item.investmentPlanId || 'N/A',
+          amount,
+          monthlyInterestRate,
+          estimatedMonthlyInterest,
+          totalInterestEarned: asNumber(item.totalInterestEarned),
+          totalPrincipalReturned: asNumber(item.totalPrincipalReturned),
+          status: item.status || 'UNKNOWN',
+          receiptApproved: Boolean(item.receiptApproved),
+          appliedAt: item.appliedAt,
+          activatedAt: item.activatedAt,
+          maturityDate: item.maturityDate,
+          notes: item.notes || '',
+          raw: item,
+        };
+      });
+
+      setInvestments(mapped);
+    } catch (err) {
+      console.error('Failed to load investments', err);
+      setError(err.message || 'Failed to load investments.');
+      setInvestments([]);
+    } finally {
+      setLoading(false);
     }
-    setIsModalOpen(false);
-    setEditInvestmentId(null);
   };
 
-  const handleEditClick = (row) => {
-    setFormData({
-      investor: row.investor,
-      product: row.product,
-      amount: row.amount,
-      interestRate: row.interestRate,
-      referralSource: row.referralSource,
-      startDate: row.startDate,
-      maturityDate: row.maturityDate,
-      status: row.status,
-    });
-    setEditInvestmentId(row.id);
-    setIsModalOpen(true);
-  };
+  useEffect(() => {
+    loadInvestments();
+  }, []);
+
+  const stats = useMemo(() => {
+    const totalCount = investments.length;
+    const activeCount = investments.filter((item) => item.status === 'ACTIVE').length;
+    const totalCapital = investments.reduce((sum, item) => sum + item.amount, 0);
+    const totalInterest = investments.reduce((sum, item) => sum + item.totalInterestEarned, 0);
+
+    return [
+      { title: 'Investment Records', value: totalCount, note: 'live records from admin investments API' },
+      { title: 'Total Capital', value: totalCapital, note: 'sum of committed investment amount', currency: true, compact: true },
+      { title: 'Interest Earned', value: totalInterest, note: 'total backend-recorded interest earned', currency: true, compact: true },
+      { title: 'Active Investments', value: activeCount, note: 'currently active portfolios' },
+    ];
+  }, [investments]);
+
+  const statusOptions = useMemo(
+    () => Array.from(new Set(investments.map((item) => item.status))).sort(),
+    [investments],
+  );
 
   const columns = [
     { key: 'id', label: 'Investment ID' },
-    { key: 'investor', label: 'Investor' },
-    { key: 'product', label: 'Product' },
+    {
+      key: 'investorName',
+      label: 'Investor',
+      render: (row) => (
+        <div>
+          <p className="font-semibold text-white">{row.investorName}</p>
+          <p className="text-xs text-slate-500">{row.investorEmail}</p>
+        </div>
+      ),
+    },
+    { key: 'planId', label: 'Plan ID' },
     {
       key: 'amount',
       label: 'Amount',
       render: (row) => formatCurrency(row.amount),
     },
-    { key: 'interestRate', label: 'Interest' },
-    { key: 'referralSource', label: 'Source' },
-    { key: 'startDate', label: 'Start Date' },
-    { key: 'maturityDate', label: 'Maturity Date' },
+    {
+      key: 'monthlyInterestRate',
+      label: 'Interest',
+      render: (row) => `${row.monthlyInterestRate}%`,
+    },
+    {
+      key: 'receiptApproved',
+      label: 'Receipt',
+      render: (row) => <StatusBadge label={row.receiptApproved ? 'APPROVED' : 'PENDING'} />,
+    },
     {
       key: 'status',
       label: 'Status',
       render: (row) => <StatusBadge label={row.status} />,
     },
     {
+      key: 'appliedAt',
+      label: 'Applied',
+      render: (row) => formatDate(row.appliedAt),
+    },
+    {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
         <button
-          onClick={() => handleEditClick(row)}
+          type="button"
+          onClick={() => setSelectedInvestment(row)}
           className="text-slate-400 transition hover:text-blue-500"
         >
-          <Pencil className="h-4 w-4" />
+          <Eye className="h-4 w-4" />
         </button>
       ),
     },
@@ -105,124 +169,146 @@ function InvestmentsPage() {
         </p>
         <h1 className="section-title mt-3">Investments</h1>
         <p className="section-copy mt-3 max-w-3xl">
-          Monitor active investments, expected monthly returns, and maturity schedules across all
-          investor portfolios.
+          Live investment book tied directly to backend admin records, including portfolio status,
+          receipt approval, and maturity timing.
         </p>
       </div>
 
+      {error && <Alert severity="error">{error}</Alert>}
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {investmentsPageStats.map((stat, index) => (
+        {stats.map((stat, index) => (
           <StatCard
             key={stat.title}
             title={stat.title}
             value={stat.value}
-            change={stat.change}
             note={stat.note}
             icon={statIcons[index]}
             tone={statTones[index]}
-            valueType={index === 1 || index === 2 ? 'currency' : 'number'}
+            valueType={stat.currency ? 'currency' : 'number'}
+            compact={stat.compact}
           />
         ))}
       </div>
 
       <SectionCard
-        title="Investment Guardrails"
-        subtitle="Operational limits and policies applied to the investment engine."
+        title="Live Investment Book"
+        subtitle="Use payment verification for receipt review and activation. This screen is the read-through ledger."
+        action={(
+          <Button
+            type="button"
+            variant="outlined"
+            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon fontSize="small" />}
+            onClick={loadInvestments}
+            disabled={loading}
+            sx={{ borderRadius: '16px' }}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        )}
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Investment window</p>
+            <p className="text-sm text-slate-400">Approved receipts</p>
             <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {formatCurrency(platformRules.minInvestment)} to{' '}
-              {formatCurrency(platformRules.maxInvestment)}
+              {formatNumber(investments.filter((item) => item.receiptApproved).length)}
             </p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Monthly return policy</p>
+            <p className="text-sm text-slate-400">Pending receipts</p>
             <p className="mt-3 font-heading text-xl font-semibold text-white">
-              {platformRules.monthlyInterest}% interest payout
+              {formatNumber(investments.filter((item) => !item.receiptApproved).length)}
             </p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-blue-500/10 p-5 text-sm leading-7 text-blue-100">
-            Every credited investment remains tied to receipt verification and admin oversight for
-            exception handling.
+            Investment edits are not exposed by the backend admin APIs. This page intentionally
+            stays read-only and reflects the source-of-truth ledger.
           </div>
         </div>
       </SectionCard>
 
       <DataTable
         title="Investment Book"
-        description="Search by investor, product, or source to review the current allocation mix."
+        description="Search by investor, plan, or investment ID to review current allocations."
         data={investments}
         columns={columns}
-        searchableKeys={['id', 'investor', 'product', 'referralSource']}
-        searchPlaceholder="Search by investor, product, or source..."
+        searchableKeys={['id', 'investorName', 'investorEmail', 'planId', 'status']}
+        searchPlaceholder="Search by investor, plan, or investment ID..."
         filterKey="status"
-        filterOptions={['Active', 'Matured', 'Pending', 'Under Review']}
+        filterOptions={statusOptions}
+        emptyMessage={loading ? 'Loading investments...' : 'No investments found.'}
         itemsPerPage={20}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-lg overflow-hidden border border-white/10 bg-[#08152f]">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <h3 className="font-heading text-lg font-semibold text-white">Edit Investment</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleUpdateInvestment} className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Investor</label>
-                  <input required name="investor" value={formData.investor} onChange={handleInputChange} className="input-shell" placeholder="Investor Name" />
+      <Dialog open={Boolean(selectedInvestment)} onClose={() => setSelectedInvestment(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Investment Details</DialogTitle>
+        <DialogContent dividers>
+          {selectedInvestment && (
+            <Stack spacing={2}>
+              <div>
+                <Typography variant="body2" color="text.secondary">Investor</Typography>
+                <Typography variant="body1">{selectedInvestment.investorName}</Typography>
+                <Typography variant="body2" color="text.secondary">{selectedInvestment.investorEmail}</Typography>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Typography variant="body2" color="text.secondary">Investment Amount</Typography>
+                  <Typography variant="body1">{formatCurrency(selectedInvestment.amount)}</Typography>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Product</label>
-                  <input required name="product" value={formData.product} onChange={handleInputChange} className="input-shell" placeholder="Product Name" />
+                  <Typography variant="body2" color="text.secondary">Monthly Interest</Typography>
+                  <Typography variant="body1">{selectedInvestment.monthlyInterestRate}%</Typography>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Amount</label>
-                  <input required type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="input-shell" placeholder="Amount" />
+                  <Typography variant="body2" color="text.secondary">Estimated Monthly Interest</Typography>
+                  <Typography variant="body1">{formatCurrency(selectedInvestment.estimatedMonthlyInterest)}</Typography>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Interest</label>
-                  <input required name="interestRate" value={formData.interestRate} onChange={handleInputChange} className="input-shell" placeholder="Interest Rate" />
+                  <Typography variant="body2" color="text.secondary">Total Interest Earned</Typography>
+                  <Typography variant="body1">{formatCurrency(selectedInvestment.totalInterestEarned)}</Typography>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Source</label>
-                  <input required name="referralSource" value={formData.referralSource} onChange={handleInputChange} className="input-shell" placeholder="Referral Source" />
+                  <Typography variant="body2" color="text.secondary">Status</Typography>
+                  <div className="mt-1">
+                    <StatusBadge label={selectedInvestment.status} />
+                  </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Start Date</label>
-                  <input required name="startDate" value={formData.startDate} onChange={handleInputChange} className="input-shell" placeholder="Start Date" />
+                  <Typography variant="body2" color="text.secondary">Receipt Review</Typography>
+                  <div className="mt-1">
+                    <StatusBadge label={selectedInvestment.receiptApproved ? 'APPROVED' : 'PENDING'} />
+                  </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Maturity Date</label>
-                  <input required name="maturityDate" value={formData.maturityDate} onChange={handleInputChange} className="input-shell" placeholder="Maturity Date" />
+                  <Typography variant="body2" color="text.secondary">Applied At</Typography>
+                  <Typography variant="body1">{formatDateTime(selectedInvestment.appliedAt)}</Typography>
                 </div>
-                <div className="col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-slate-300">Status</label>
-                  <select name="status" value={formData.status} onChange={handleInputChange} className="input-shell appearance-none">
-                    <option value="Active">Active</option>
-                    <option value="Matured">Matured</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Under Review">Under Review</option>
-                  </select>
+                <div>
+                  <Typography variant="body2" color="text.secondary">Activated At</Typography>
+                  <Typography variant="body1">{formatDateTime(selectedInvestment.activatedAt)}</Typography>
+                </div>
+                <div>
+                  <Typography variant="body2" color="text.secondary">Maturity Date</Typography>
+                  <Typography variant="body1">{formatDate(selectedInvestment.maturityDate)}</Typography>
+                </div>
+                <div>
+                  <Typography variant="body2" color="text.secondary">Principal Returned</Typography>
+                  <Typography variant="body1">{formatCurrency(selectedInvestment.totalPrincipalReturned)}</Typography>
                 </div>
               </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Save Changes
-                </button>
+              <div>
+                <Typography variant="body2" color="text.secondary">Plan / Notes</Typography>
+                <Typography variant="body1">
+                  {selectedInvestment.planId} {selectedInvestment.notes ? `- ${selectedInvestment.notes}` : ''}
+                </Typography>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedInvestment(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

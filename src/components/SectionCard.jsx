@@ -1,23 +1,35 @@
+import { Card, CardContent, Stack, Typography } from '@mui/material';
+
 function SectionCard({ title, subtitle, action, className = '', children }) {
   return (
-    <section className={`glass-card p-5 sm:p-6 ${className}`}>
-      {(title || action || subtitle) && (
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            {title && (
-              <h3 className="theme-panel-title font-heading text-xl font-semibold text-slate-900">
-                {title}
-              </h3>
-            )}
-            {subtitle && (
-              <p className="theme-panel-subtitle mt-2 text-sm text-slate-500">{subtitle}</p>
-            )}
-          </div>
-          {action}
-        </div>
-      )}
-      {children}
-    </section>
+    <Card className={`glass-card ${className}`} sx={{ overflow: 'hidden' }}>
+      <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+        {(title || action || subtitle) && (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
+            justifyContent="space-between"
+            sx={{ mb: 3 }}
+          >
+            <div>
+              {title && (
+                <Typography variant="h5" className="theme-panel-title" sx={{ fontSize: { xs: 20, sm: 22 } }}>
+                  {title}
+                </Typography>
+              )}
+              {subtitle && (
+                <Typography className="theme-panel-subtitle" variant="body2" sx={{ mt: 1 }}>
+                  {subtitle}
+                </Typography>
+              )}
+            </div>
+            {action}
+          </Stack>
+        )}
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -8,6 +8,7 @@ import {
   adminGetUsers,
   adminUpdateUser,
   adminGetKycDocuments,
+  adminGetUserKycDocuments,
   adminApproveKyc,
   adminRejectKyc,
   adminGetUserBankDetails,
@@ -279,13 +280,18 @@ function UserManagementPage() {
       let docs = null;
       if (kycStatus && kycStatus !== 'NOT_SUBMITTED') {
         try {
-          docs = await adminGetKycDocuments(kycId);
+          docs = await adminGetUserKycDocuments(userId);
         } catch (docErr) {
-          console.warn(`Could not load KYC documents for user ${userId}:`, docErr);
-          if (docErr.message?.includes('not found') || docErr.status === 404) {
-            docs = { empty: true };
-          } else {
-            throw docErr;
+          console.warn(`Could not load KYC documents by user ${userId}:`, docErr);
+          try {
+            docs = await adminGetKycDocuments(kycId);
+          } catch (fallbackErr) {
+            console.warn(`Could not load KYC documents by KYC ID ${kycId}:`, fallbackErr);
+            if (fallbackErr.message?.includes('not found') || fallbackErr.status === 404) {
+              docs = { empty: true };
+            } else {
+              throw fallbackErr;
+            }
           }
         }
       } else {
@@ -373,13 +379,18 @@ function UserManagementPage() {
       let docs = null;
       if (kycStatus && kycStatus !== 'NOT_SUBMITTED') {
         try {
-          docs = await adminGetKycDocuments(kycId);
+          docs = await adminGetUserKycDocuments(userId);
         } catch (docErr) {
-          console.warn(`Could not load KYC documents for user ${userId} (kycId: ${kycId}):`, docErr);
-          if (docErr.message?.includes('not found') || docErr.status === 404) {
-            docs = { empty: true };
-          } else {
-            throw docErr;
+          console.warn(`Could not load KYC documents by user ${userId}:`, docErr);
+          try {
+            docs = await adminGetKycDocuments(kycId);
+          } catch (fallbackErr) {
+            console.warn(`Could not load KYC documents by KYC ID ${kycId}:`, fallbackErr);
+            if (fallbackErr.message?.includes('not found') || fallbackErr.status === 404) {
+              docs = { empty: true };
+            } else {
+              throw fallbackErr;
+            }
           }
         }
       } else {
@@ -628,8 +639,8 @@ function UserManagementPage() {
     
     return (
       <div className="space-y-2">
-        <p className="text-sm font-medium text-slate-300">{title}</p>
-        <a href={fullUrl} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-xl border border-white/10 aspect-[4/3] bg-black/40">
+        <p className="text-sm font-semibold text-slate-200">{title}</p>
+        <a href={fullUrl} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-lg border border-white/10 aspect-[16/10] bg-slate-950/80">
           {isPdf ? (
             <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-slate-900/60 hover:bg-slate-900/40 transition">
               <FileText className="h-10 w-10 text-rose-500 mb-2" />
@@ -639,10 +650,10 @@ function UserManagementPage() {
               </span>
             </div>
           ) : (
-            <img src={fullUrl} alt={title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-300" />
+            <img src={fullUrl} alt={title} className="w-full h-full object-contain p-2 opacity-90 group-hover:opacity-100 transition duration-300" />
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition duration-300">
-            <span className="text-white text-sm font-medium px-3 py-1 bg-blue-500/80 rounded-full flex items-center gap-2">
+            <span className="text-white text-sm font-medium px-3 py-1 bg-blue-500/90 rounded-full flex items-center gap-2">
               <Eye className="h-4 w-4" /> Open Full
             </span>
           </div>
@@ -720,18 +731,25 @@ function UserManagementPage() {
       />
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm overflow-y-auto">
-          <div className={`glass-card w-full ${editUserId ? 'max-w-5xl' : 'max-w-md'} overflow-hidden border border-white/10 bg-[#08152f] my-auto max-h-[90vh]`}>
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 sticky top-0 bg-[#08152f] z-10">
-              <h3 className="font-heading text-lg font-semibold text-white">{editUserId ? 'Edit User' : 'Add New User'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
+          <div className={`w-full ${editUserId ? 'max-w-6xl' : 'max-w-md'} overflow-hidden rounded-2xl border border-white/10 bg-[#071226] shadow-[0_32px_90px_rgba(0,0,0,0.55)] max-h-[calc(100dvh-32px)]`}>
+            <div className="flex items-start justify-between border-b border-white/10 px-6 py-5 bg-[#08152f]">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-white">{editUserId ? 'Investor Review' : 'Add New User'}</h3>
+                {editUserId && (
+                  <p className="mt-1 text-sm text-slate-400">
+                    Account profile, linked bank details, and approved KYC documents in one review view.
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-slate-400 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveUser} className="p-6 overflow-y-auto max-h-[calc(90vh-70px)]">
-              <div className={editUserId ? "grid grid-cols-1 lg:grid-cols-12 gap-8" : "space-y-4"}>
+            <form onSubmit={handleSaveUser} className="flex max-h-[calc(100dvh-126px)] flex-col">
+              <div className={`${editUserId ? "grid grid-cols-1 lg:grid-cols-12 gap-6" : "space-y-4"} flex-1 overflow-y-auto p-6`}>
                 {/* Left Column: Form Fields */}
-                <div className={editUserId ? "lg:col-span-5 space-y-4" : "space-y-4"}>
+                <div className={editUserId ? "lg:col-span-4 space-y-4" : "space-y-4"}>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-slate-300">Name</label>
                     <input required name="name" value={formData.name} onChange={handleInputChange} className="input-shell w-full" placeholder="Full Name" />
@@ -773,32 +791,15 @@ function UserManagementPage() {
                     </div>
                   )}
 
-                  <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      disabled={actionLoading}
-                      className="btn-secondary disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={actionLoading}
-                      className="rounded-xl bg-blue-500 hover:bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
-                    >
-                      {actionLoading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
                 </div>
 
                 {/* Right Column: Investor details, Bank details, and Documents */}
                 {editUserId && (
-                  <div className="lg:col-span-7 space-y-6 lg:border-l lg:border-white/10 lg:pl-8 pr-2">
+                  <div className="lg:col-span-8 space-y-6 lg:border-l lg:border-white/10 lg:pl-6">
                     {/* Investor Details */}
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Investor Account Details</h4>
-                      <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5 text-sm text-slate-300">
+                      <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-300 sm:grid-cols-2">
                         <div><span className="text-slate-500 block text-xs">Mobile Number</span>{formData.mobileNumber || 'N/A'}</div>
                         <div><span className="text-slate-500 block text-xs">PAN Number</span>{formData.panNumber || 'N/A'}</div>
                         <div><span className="text-slate-500 block text-xs">Aadhaar Last 4</span>{formData.aadhaarLast4 || 'N/A'}</div>
@@ -809,7 +810,7 @@ function UserManagementPage() {
                     {/* Bank Info */}
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Bank Information</h4>
-                      <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5 text-sm text-slate-300">
+                      <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-300 sm:grid-cols-2">
                         <div><span className="text-slate-500 block text-xs">Bank Name</span>{formData.bankDetails?.bankName || 'N/A'}</div>
                         <div><span className="text-slate-500 block text-xs">Account Number</span>{formData.bankDetails?.accountNumber || 'N/A'}</div>
                         <div><span className="text-slate-500 block text-xs">IFSC Code</span>{formData.bankDetails?.ifscCode || 'N/A'}</div>
@@ -822,7 +823,7 @@ function UserManagementPage() {
                       {loadingDocs ? (
                         <div className="py-8 flex justify-center text-slate-400 text-sm">Loading documents...</div>
                       ) : kycDocs ? (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                           {renderDoc('PAN Card', kycDocs.panCard || kycDocs.panCardUrl || kycDocs.panCardImage || kycDocs.panCardPath)}
                           {renderDoc('Aadhaar Front', kycDocs.aadhaarFront || kycDocs.aadhaarFrontUrl || kycDocs.aadhaarFrontImage || kycDocs.aadhaarFrontPath)}
                           {renderDoc('Aadhaar Back', kycDocs.aadhaarBack || kycDocs.aadhaarBackUrl || kycDocs.aadhaarBackImage || kycDocs.aadhaarBackPath)}
@@ -838,6 +839,23 @@ function UserManagementPage() {
                   </div>
                 )}
               </div>
+              <div className="flex justify-end gap-3 border-t border-white/10 bg-[#08152f] px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={actionLoading}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="rounded-xl bg-blue-500 hover:bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
+                >
+                  {actionLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -845,21 +863,24 @@ function UserManagementPage() {
 
       {/* KYC Review Modal */}
       {viewKycDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-white/10 bg-[#08152f] my-auto">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 sticky top-0 bg-[#08152f] z-10">
-              <h3 className="font-heading text-lg font-semibold text-white">Review KYC Documents</h3>
-              <button onClick={() => !actionLoading && setViewKycDetails(null)} disabled={actionLoading} className="text-slate-400 hover:text-white disabled:opacity-50">
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <div className="flex w-full max-w-6xl max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#071226] shadow-[0_32px_90px_rgba(0,0,0,0.55)]">
+            <div className="flex items-start justify-between border-b border-white/10 px-6 py-5 bg-[#08152f]">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-white">Review KYC Documents</h3>
+                <p className="mt-1 text-sm text-slate-400">Inspect applicant details, uploaded files, and bank information before taking action.</p>
+              </div>
+              <button onClick={() => !actionLoading && setViewKycDetails(null)} disabled={actionLoading} className="rounded-full border border-white/10 bg-white/[0.04] p-2 text-slate-400 hover:text-white disabled:opacity-50">
                 <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="p-6 space-y-8">
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
               {actionError && <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-400">{actionError}</div>}
               
               <div>
                 <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Applicant Details</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <span className="text-xs text-slate-500 block mb-1">ID</span>
                     <span className="text-sm text-slate-200">{viewKycDetails.id || viewKycDetails.kycId}</span>
@@ -906,7 +927,7 @@ function UserManagementPage() {
                 {loadingDocs ? (
                   <div className="py-12 flex justify-center text-slate-400">Loading documents...</div>
                 ) : (kycDocs || viewKycDetails) ? (
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {renderDoc('PAN Card', kycDocs?.panCard || kycDocs?.panCardUrl || kycDocs?.panCardImage || kycDocs?.panCardPath || viewKycDetails?.panCardPath)}
                     {renderDoc('Aadhaar Front', kycDocs?.aadhaarFront || kycDocs?.aadhaarFrontUrl || kycDocs?.aadhaarFrontImage || kycDocs?.aadhaarFrontPath || viewKycDetails?.aadhaarFrontPath)}
                     {renderDoc('Aadhaar Back', kycDocs?.aadhaarBack || kycDocs?.aadhaarBackUrl || kycDocs?.aadhaarBackImage || kycDocs?.aadhaarBackPath || viewKycDetails?.aadhaarBackPath)}
@@ -955,7 +976,7 @@ function UserManagementPage() {
                   return (
                     <div>
                       <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
-                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] text-sm text-slate-400">
+                      <div className="p-4 rounded-xl border border-white/10 bg-white/[0.035] text-sm text-slate-400">
                         No typed bank details found. The user will link their bank account after their KYC is approved.
                       </div>
                     </div>
@@ -965,7 +986,7 @@ function UserManagementPage() {
                 return (
                   <div>
                     <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                    <div className="grid gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-2 lg:grid-cols-4">
                       <div>
                         <span className="text-xs text-slate-500 block mb-1">Account Holder</span>
                         <span className="text-sm text-slate-200">{bankInfo.accountHolderName || 'N/A'}</span>
@@ -1013,7 +1034,7 @@ function UserManagementPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4 bg-[#08152f] sticky bottom-0">
+            <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4 bg-[#08152f]">
               <button type="button" onClick={() => setViewKycDetails(null)} disabled={actionLoading} className="btn-secondary disabled:opacity-50">
                 {String(viewKycDetails?.status || 'PENDING').toUpperCase() === 'PENDING' ? 'Cancel' : 'Close'}
               </button>
