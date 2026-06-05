@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { CircularProgress, Stack, Typography } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -9,7 +9,7 @@ import TermsAndConditionsPage from './pages/TermsAndConditionsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ForgotMpinPage from './pages/ForgotMpinPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import { getAuthRole, clearAuthData, getStoredOnboardingStatus } from './services/api';
+import { clearAuthData, getAuthRole, getStoredOnboardingStatus, hydrateInvestorSessionState, saveAuthData } from './services/api';
 import { resolveInvestorRoute, isOnboardingComplete } from './utils/onboardingRouter';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -18,9 +18,14 @@ const Wallet = lazy(() => import('./pages/Wallet'));
 const ReferralNetwork = lazy(() => import('./pages/ReferralNetwork'));
 const Withdraw = lazy(() => import('./pages/Withdraw'));
 const PaymentReceipts = lazy(() => import('./pages/PaymentReceipts'));
+const Statements = lazy(() => import('./pages/Statements'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const InvestmentStatus = lazy(() => import('./pages/InvestmentStatus'));
 const Support = lazy(() => import('./pages/Support'));
+const SecurityCenter = lazy(() => import('./pages/SecurityCenter'));
+const Watchlist = lazy(() => import('./pages/Watchlist'));
+const TaxCenter = lazy(() => import('./pages/TaxCenter'));
+const Nominees = lazy(() => import('./pages/Nominees'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const KycPage = lazy(() => import('./pages/KycPage'));
@@ -37,6 +42,8 @@ const AdminReferrals = lazy(() => import('./pages/ReferralStatisticsPage'));
 const AdminFraud = lazy(() => import('./pages/FraudMonitoringPage'));
 const AdminPaymentVerification = lazy(() => import('./pages/PaymentVerificationPage'));
 const AdminUserManagement = lazy(() => import('./pages/UserManagementPage'));
+const AdminUser360 = lazy(() => import('./pages/User360Page'));
+const AdminSupport = lazy(() => import('./pages/AdminSupportPage'));
 const AdminReports = lazy(() => import('./pages/ReportsPage'));
 const AdminSettings = lazy(() => import('./pages/SettingsPage'));
 
@@ -60,24 +67,56 @@ function RouteLoader() {
 
 function App() {
   const [authRole, setAuthRole] = useState(() => getAuthRole());
+  const [investorStatus, setInvestorStatus] = useState(() => getStoredOnboardingStatus() || {});
 
   const handleLogin = (role) => {
     window.localStorage.setItem(AUTH_STORAGE_KEY, role);
     setAuthRole(role);
+    if (role === 'user') {
+      setInvestorStatus(getStoredOnboardingStatus() || {});
+    }
   };
 
   const handleLogout = () => {
     clearAuthData();
     setAuthRole(null);
+    setInvestorStatus({});
   };
+
+  useEffect(() => {
+    if (authRole !== 'user') {
+      setInvestorStatus({});
+      return;
+    }
+
+    setInvestorStatus(getStoredOnboardingStatus() || {});
+
+    let active = true;
+    hydrateInvestorSessionState()
+      .then((sessionState) => {
+        if (!active || !sessionState) return;
+        saveAuthData(sessionState);
+        setInvestorStatus(getStoredOnboardingStatus() || {});
+      })
+      .catch(() => {
+        if (!active) return;
+        setInvestorStatus(getStoredOnboardingStatus() || {});
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authRole]);
 
   const withSuspense = (node) => <Suspense fallback={<RouteLoader />}>{node}</Suspense>;
   const userAuthenticated = authRole === 'user';
   const adminAuthenticated = authRole === 'admin';
-  const investorStatus = getStoredOnboardingStatus() || {};
   const investorHome = resolveInvestorRoute(investorStatus);
   const defaultPath = adminAuthenticated ? '/admin' : investorHome;
   const canOpenDashboard = isOnboardingComplete(investorStatus);
+  const accountIsActive = ['ACTIVE', 'ACCOUNT_ACTIVATED'].includes(String(investorStatus.accountStatus || investorStatus.onboardingStatus || '').toUpperCase());
+  const bankAlreadyLinked = Boolean(investorStatus.bankVerified);
+  const mpinAlreadyCreated = Boolean(investorStatus.mpinCreated);
 
   return (
     <Routes>
@@ -107,9 +146,18 @@ function App() {
         <Route path="/dashboard" element={canOpenDashboard ? withSuspense(<Dashboard />) : <Navigate to={investorHome} replace />} />
         <Route path="/kyc" element={withSuspense(<KycPage />)} />
         <Route path="/kyc/status" element={withSuspense(<KycStatusPage />)} />
-        <Route path="/bank/link" element={withSuspense(<BankLinkPage />)} />
-        <Route path="/account/activate" element={withSuspense(<AccountActivatePage />)} />
-        <Route path="/setup-mpin" element={withSuspense(<SetupMpinPage />)} />
+        <Route
+          path="/bank/link"
+          element={bankAlreadyLinked ? <Navigate to={resolveInvestorRoute(investorStatus)} replace /> : withSuspense(<BankLinkPage />)}
+        />
+        <Route
+          path="/account/activate"
+          element={accountIsActive ? <Navigate to={resolveInvestorRoute(investorStatus)} replace /> : withSuspense(<AccountActivatePage />)}
+        />
+        <Route
+          path="/setup-mpin"
+          element={mpinAlreadyCreated ? <Navigate to={resolveInvestorRoute(investorStatus)} replace /> : withSuspense(<SetupMpinPage />)}
+        />
         
         {/* Protected Dashboard Routes - Locked until onboarding is complete */}
         <Route path="/investments" element={canOpenDashboard ? withSuspense(<Investments />) : <Navigate to={investorHome} replace />} />
@@ -117,8 +165,13 @@ function App() {
         <Route path="/referral-network" element={canOpenDashboard ? withSuspense(<ReferralNetwork />) : <Navigate to={investorHome} replace />} />
         <Route path="/withdraw" element={canOpenDashboard ? withSuspense(<Withdraw />) : <Navigate to={investorHome} replace />} />
         <Route path="/payment-receipts" element={canOpenDashboard ? withSuspense(<PaymentReceipts />) : <Navigate to={investorHome} replace />} />
+        <Route path="/statements" element={canOpenDashboard ? withSuspense(<Statements />) : <Navigate to={investorHome} replace />} />
         <Route path="/notifications" element={canOpenDashboard ? withSuspense(<Notifications />) : <Navigate to={investorHome} replace />} />
         <Route path="/investment-status" element={canOpenDashboard ? withSuspense(<InvestmentStatus />) : <Navigate to={investorHome} replace />} />
+        <Route path="/security" element={canOpenDashboard ? withSuspense(<SecurityCenter />) : <Navigate to={investorHome} replace />} />
+        <Route path="/watchlist" element={canOpenDashboard ? withSuspense(<Watchlist />) : <Navigate to={investorHome} replace />} />
+        <Route path="/tax-center" element={canOpenDashboard ? withSuspense(<TaxCenter />) : <Navigate to={investorHome} replace />} />
+        <Route path="/nominees" element={canOpenDashboard ? withSuspense(<Nominees />) : <Navigate to={investorHome} replace />} />
         <Route path="/settings" element={canOpenDashboard ? withSuspense(<Settings />) : <Navigate to={investorHome} replace />} />
         
         {/* Always accessible routes for onboarding users */}
@@ -141,6 +194,8 @@ function App() {
         <Route path="fraud-monitoring" element={withSuspense(<AdminFraud />)} />
         <Route path="payment-verification" element={withSuspense(<AdminPaymentVerification />)} />
         <Route path="user-management" element={withSuspense(<AdminUserManagement />)} />
+        <Route path="users/:userId" element={withSuspense(<AdminUser360 />)} />
+        <Route path="support" element={withSuspense(<AdminSupport />)} />
         <Route path="reports" element={withSuspense(<AdminReports />)} />
         <Route path="settings" element={withSuspense(<AdminSettings />)} />
       </Route>

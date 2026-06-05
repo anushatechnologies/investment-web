@@ -179,29 +179,35 @@ function DashboardPage() {
   ]), [monthlyReport]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <div className="admin-dashboard-page space-y-6">
+      <div className="admin-dashboard-hero flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-soft">
-            Anusha Trade
+            Live operations cockpit
           </p>
-          <h1 className="section-title mt-3">Main Dashboard</h1>
+          <h1 className="section-title mt-3">Command Dashboard</h1>
           <p className="section-copy mt-3 max-w-3xl">
             Live operating view across onboarding, investment activation, withdrawal queues, and
             fraud exposure using the backend admin APIs.
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="outlined"
-          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon fontSize="small" />}
-          onClick={loadDashboard}
-          disabled={loading}
-          sx={{ alignSelf: { xs: 'flex-start', xl: 'center' }, borderRadius: '16px' }}
-        >
-          {loading ? 'Refreshing...' : 'Refresh Dashboard'}
-        </Button>
+        <div className="admin-dashboard-hero-panel">
+          <div>
+            <span className="admin-dashboard-hero-label">Capital under watch</span>
+            <strong>{formatCompactCurrency(asNumber(dashboard?.totalAum))}</strong>
+          </div>
+          <Button
+            type="button"
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon fontSize="small" />}
+            onClick={loadDashboard}
+            disabled={loading}
+            sx={{ borderRadius: '16px', whiteSpace: 'nowrap' }}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {error && <Alert severity="error">{error}</Alert>}

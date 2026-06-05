@@ -3,15 +3,26 @@ import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth
 
 const isOtpTestMode = import.meta.env.VITE_FIREBASE_OTP_TEST_MODE === 'true';
 
+const defaultFirebaseConfig = {
+  apiKey: 'AIzaSyBa1Arilraettuqi_8IA0v4Qae0mwrkYjQ',
+  authDomain: 'anushabazaar-2288e.firebaseapp.com',
+  databaseURL: 'https://anushabazaar-2288e-default-rtdb.firebaseio.com',
+  projectId: 'anushabazaar-2288e',
+  storageBucket: 'anushabazaar-2288e.firebasestorage.app',
+  messagingSenderId: '64875938387',
+  appId: '1:64875938387:web:0654cd73f58b6408ba7ca6',
+  measurementId: 'G-9S05BL12HY',
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || defaultFirebaseConfig.databaseURL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || defaultFirebaseConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || defaultFirebaseConfig.measurementId,
 };
 
 // Check if Firebase keys are real (not placeholders)
@@ -42,7 +53,14 @@ function getMissingFirebaseKeys() {
     'VITE_FIREBASE_APP_ID',
     'VITE_FIREBASE_MESSAGING_SENDER_ID',
   ];
-  return required.filter((k) => !import.meta.env[k] || import.meta.env[k].startsWith('YOUR_'));
+  const configuredValues = {
+    VITE_FIREBASE_API_KEY: firebaseConfig.apiKey,
+    VITE_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain,
+    VITE_FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+    VITE_FIREBASE_APP_ID: firebaseConfig.appId,
+    VITE_FIREBASE_MESSAGING_SENDER_ID: firebaseConfig.messagingSenderId,
+  };
+  return required.filter((k) => !configuredValues[k] || configuredValues[k].startsWith('YOUR_'));
 }
 
 export function getFirebaseOtpPreflightError() {

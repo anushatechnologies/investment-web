@@ -1,15 +1,54 @@
 import { LifeBuoy, Mail, MessageCircle, Phone } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatusBadge from '../components/StatusBadge';
-import { supportFaq, supportTickets } from '../data/mockData';
+import { supportFaq } from '../data/mockData';
+import { createSupportTicket, getSupportTickets } from '../services/api';
 
 function Support() {
+  const [tickets, setTickets] = useState([]);
+  const [form, setForm] = useState({ category: 'GENERAL', subject: '', message: '', priority: 'MEDIUM' });
+  const [message, setMessage] = useState('');
+
+  const loadTickets = () => {
+    getSupportTickets()
+      .then((data) => setTickets(Array.isArray(data) ? data : []))
+      .catch(() => setTickets([]));
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    try {
+      await createSupportTicket(form);
+      setForm({ category: 'GENERAL', subject: '', message: '', priority: 'MEDIUM' });
+      setMessage('Support ticket created successfully.');
+      loadTickets();
+    } catch (err) {
+      setMessage(err?.message || 'Unable to create support ticket.');
+    }
+  };
+
+  const ticketRows = tickets.map((ticket) => ({
+    id: ticket.id,
+    subject: ticket.subject,
+    createdOn: ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : '-',
+    priority: ticket.priority,
+    status: ticket.status,
+    reply: ticket.adminReply || '-',
+  }));
+
   const columns = [
     { key: 'id', label: 'Ticket ID' },
     { key: 'subject', label: 'Subject' },
     { key: 'createdOn', label: 'Created On' },
     { key: 'priority', label: 'Priority' },
+    { key: 'reply', label: 'Admin Reply' },
     {
       key: 'status',
       label: 'Status',
@@ -60,8 +99,32 @@ function Support() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Frequently Asked Questions" subtitle="Fast answers for common investor queries.">
-          <div className="space-y-4">
+        <SectionCard title="Create Ticket" subtitle="Raise wallet, withdrawal, referral, or receipt issues.">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <select className="input-shell" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                <option value="GENERAL">General</option>
+                <option value="WALLET">Wallet</option>
+                <option value="WITHDRAWAL">Withdrawal</option>
+                <option value="REFERRAL">Referral</option>
+                <option value="KYC">KYC</option>
+              </select>
+              <select className="input-shell" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+            <input className="input-shell" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject" required />
+            <textarea className="input-shell min-h-32" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Explain your issue" required />
+            {message && <p className="text-sm text-slate-600">{message}</p>}
+            <button type="submit" className="btn-primary">Create Ticket</button>
+          </form>
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Frequently Asked Questions" subtitle="Fast answers for common investor queries.">
+        <div className="grid gap-4 lg:grid-cols-2">
             {supportFaq.map((item) => (
               <div key={item.title} className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
                 <div className="flex items-start gap-3">
@@ -73,19 +136,18 @@ function Support() {
                 </div>
               </div>
             ))}
-          </div>
-        </SectionCard>
-      </div>
+        </div>
+      </SectionCard>
 
       <DataTable
         title="Support Tickets"
         description="Current and previous support requests from your account."
-        data={supportTickets}
+        data={ticketRows}
         columns={columns}
-        searchableKeys={['id', 'subject', 'priority', 'status']}
+        searchableKeys={['id', 'subject', 'priority', 'status', 'reply']}
         searchPlaceholder="Search support tickets..."
         filterKey="status"
-        filterOptions={['Open', 'Completed']}
+        filterOptions={['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']}
       />
     </div>
   );

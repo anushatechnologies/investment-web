@@ -1,58 +1,164 @@
-import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Fingerprint, KeyRound, Loader2, Mail, Phone, ShieldCheck, UserPlus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { firebaseSendOtp, firebaseVerifyOtp, getFirebaseIdToken, getFirebaseOtpPreflightError, getReadableFirebaseOtpError, resetRecaptcha, setupRecaptcha } from '../firebase';
-import { registerUser, saveAuthData, sendOtp, setMpin, verifyOtp, linkBank, submitKyc, loginWithEmail, getAccessToken } from '../services/api';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  FileCheck2,
+  Loader2,
+  Phone,
+  ShieldCheck,
+  UserRoundPlus,
+} from 'lucide-react';
+import AuthShell from '../components/auth/AuthShell';
+import {
+  firebaseSendOtp,
+  firebaseVerifyOtp,
+  getFirebaseIdToken,
+  getFirebaseOtpPreflightError,
+  getReadableFirebaseOtpError,
+  resetRecaptcha,
+  setupRecaptcha,
+} from '../firebase';
+import {
+  registerUser,
+  saveAuthData,
+  sendOtp,
+  validateReferralCode,
+  verifyOtp,
+} from '../services/api';
+import { saveOnboardingDraft } from '../utils/onboardingDraftStore';
+import { resolveInvestorRoute } from '../utils/onboardingRouter';
 
 const STEPS = {
-  MOBILE: 1,
-  OTP: 2,
-  PROFILE: 3,
-  EMAIL: 4,
-  PASSWORD: 5,
-  LEGAL: 6,
-  KYC: 7,
-  ACTIVATION: 8,
-  MPIN: 9,
+  CONTACT: 'contact',
+  OTP: 'otp',
+  PROFILE: 'profile',
+  PASSWORD: 'password',
+  LEGAL: 'legal',
+  RESULT: 'result',
 };
 
-const TOTAL_STEPS = 9;
+const sideHighlights = [
+  {
+    title: 'Backend-aware signup',
+    copy: 'Signup now creates the investor account first, and then the app moves to KYC, bank linking, activation, and MPIN in the right order.',
+    icon: <FileCheck2 size={20} />,
+  },
+  {
+    title: 'Mobile-first verification',
+    copy: 'Signup now verifies investors only through mobile OTP, while still collecting email and password for account access.',
+    icon: <Phone size={20} />,
+  },
+  {
+    title: 'Cleaner investor handoff',
+    copy: 'After signup, investors are guided to the exact next step: KYC, bank link, activation, MPIN, or dashboard.',
+    icon: <ShieldCheck size={20} />,
+  },
+];
 
-function getReadableAuthError(err, fallbackMessage) {
-  const firebaseMessage = getReadableFirebaseOtpError(err);
-  if (firebaseMessage) return firebaseMessage;
-  return err?.message || fallbackMessage;
-}
+const stepMeta = {
+  [STEPS.CONTACT]: {
+    title: 'Verify mobile number',
+    subtitle: 'Start with mobile OTP verification before collecting email and password.',
+    label: 'Verify Mobile',
+  },
+  [STEPS.OTP]: {
+    title: 'Verify your OTP',
+    subtitle: 'Enter the six-digit code sent to your selected contact channel.',
+    label: 'Verify OTP',
+  },
+  [STEPS.PROFILE]: {
+    title: 'Create account',
+    subtitle: 'Enter the core registration fields required before the backend can create the investor account.',
+    label: 'Create Account',
+  },
+  [STEPS.PASSWORD]: {
+    title: 'Set account password',
+    subtitle: 'Create a strong password and attach an optional referral code before registration.',
+    label: 'Set Password',
+  },
+  [STEPS.LEGAL]: {
+    title: 'Review and accept investor consents',
+    subtitle: 'Confirm the required legal agreements, then create your investor account.',
+    label: 'Review & Consent',
+  },
+  [STEPS.RESULT]: {
+    title: 'Signup complete',
+    subtitle: 'Continue with the next onboarding step based on your registration path.',
+    label: 'Next Step',
+  },
+};
 
 function getPasswordStrength(password) {
-  if (!password) return { label: 'Empty', score: 0 };
+  if (!password) return { label: 'Empty', score: 0, color: 'transparent' };
   let score = 0;
   if (password.length >= 8) score += 1;
   if (/[a-z]/.test(password)) score += 1;
   if (/[A-Z]/.test(password)) score += 1;
   if (/\d/.test(password)) score += 1;
   if (/[^A-Za-z\d]/.test(password)) score += 1;
+  if (score <= 2) return { label: 'Weak', score, color: '#ef4444' };
+  if (score <= 4) return { label: 'Medium', score, color: '#f59e0b' };
+  return { label: 'Strong', score, color: '#10b981' };
+}
 
-  if (score <= 2) return { label: 'Weak', score };
-  if (score <= 4) return { label: 'Medium', score };
-  return { label: 'Strong', score };
+function getReadableAuthError(error, fallback) {
+  return getReadableFirebaseOtpError(error) || error?.message || fallback;
+}
+
+/* Compact labelled input section wrapper */
+function FieldGroup({ label, children }) {
+  return (
+    <Box
+      sx={{
+        borderRadius: '18px',
+        border: '1px solid',
+        borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(226,232,240,0.9)',
+        p: 2.5,
+        bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(248,250,252,0.8)',
+      }}
+    >
+      {label && (
+        <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'text.secondary', mb: 2 }}>
+          {label}
+        </Typography>
+      )}
+      <Stack spacing={2}>{children}</Stack>
+    </Box>
+  );
 }
 
 function SignupPage({ onLogin }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const timerRef = useRef(null);
 
-  const [step, setStep] = useState(STEPS.MOBILE);
+  const [step, setStep] = useState(STEPS.CONTACT);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resultState, setResultState] = useState(null);
 
   const [mobile, setMobile] = useState('');
-  const [emailForOtp, setEmailForOtp] = useState('');
-  const [signupMode, setSignupMode] = useState('email'); // default to email to bypass broken mobile
   const [otp, setOtp] = useState('');
   const [otpTimer, setOtpTimer] = useState(0);
   const [firebaseIdToken, setFirebaseIdToken] = useState('');
-  const [signupVerificationToken, setSignupVerificationToken] = useState('');
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,33 +167,46 @@ function SignupPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [referralStatus, setReferralStatus] = useState(null);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [kycConsent, setKycConsent] = useState(false);
 
-  const [mpin, setMpinValue] = useState('');
-  const [mpinConfirm, setMpinConfirm] = useState('');
+  const passwordStrength = getPasswordStrength(password);
 
-  const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
-  const [panNumber, setPanNumber] = useState('');
-  const [aadhaarNumber, setAadhaarNumber] = useState('');
-  const [selfieDone, setSelfieDone] = useState(false);
-  const [panProofFile, setPanProofFile] = useState(null);
-  const [aadhaarProofFile, setAadhaarProofFile] = useState(null);
-  const [aadhaarBackFile, setAadhaarBackFile] = useState(null);
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [address, setAddress] = useState('');
-  const [selfieProofFile, setSelfieProofFile] = useState(null);
-  const [bankHolderName, setBankHolderName] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
-  const [ifscCode, setIfscCode] = useState('');
-  const [cancelledChequeFile, setCancelledChequeFile] = useState(null);
-  const [bankPassbookFile, setBankPassbookFile] = useState(null);
+  const stepSequence = useMemo(
+    () => [STEPS.CONTACT, STEPS.OTP, STEPS.PROFILE, STEPS.PASSWORD, STEPS.LEGAL, STEPS.RESULT],
+    [],
+  );
+
+  const stepIndex = Math.max(0, stepSequence.indexOf(step));
+  const progress = ((stepIndex + 1) / stepSequence.length) * 100;
+  const currentStepMeta = stepMeta[step];
 
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
   }, []);
+
+  useEffect(() => {
+    const inviteCode = searchParams.get('ref') || searchParams.get('referralCode') || searchParams.get('referredByCode');
+    if (inviteCode) {
+      setReferralCode(inviteCode.trim().toUpperCase());
+    }
+  }, [searchParams]);
+
+  const goToStep = (nextStep) => {
+    setError('');
+    setStep(nextStep);
+  };
+
+  const goBack = () => {
+    const index = stepSequence.indexOf(step);
+    if (index > 0) {
+      setError('');
+      setStep(stepSequence[index - 1]);
+    }
+  };
 
   const startOtpTimer = () => {
     setOtpTimer(30);
@@ -103,107 +222,83 @@ function SignupPage({ onLogin }) {
     }, 1000);
   };
 
-  const handleSendOtp = async (e) => {
-    e.preventDefault();
-    if (signupMode === 'mobile') {
+  const handleSendOtp = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
       if (mobile.length !== 10) {
-        setError('Please enter a valid 10-digit mobile number.');
-        return;
+        throw new Error('Please enter a valid 10-digit mobile number.');
       }
       const preflightError = getFirebaseOtpPreflightError();
       if (preflightError) {
-        setError(preflightError);
+        throw new Error(preflightError);
+      }
+
+      const otpResponse = await sendOtp(mobile, '+91', 'REGISTRATION', { useFirebase: true });
+      if (otpResponse?.userExists) {
+        navigate('/login', {
+          replace: true,
+          state: {
+            prefillIdentifier: mobile,
+            prefillMode: 'mpin',
+            infoMessage: 'This mobile number is already registered. Sign in to continue.',
+          },
+        });
         return;
       }
-      setLoading(true);
-      setError('');
-      try {
-        await sendOtp(mobile);
-        resetRecaptcha();
-        await setupRecaptcha();
-        await firebaseSendOtp(`+91${mobile}`);
-        startOtpTimer();
-        setStep(STEPS.OTP);
-      } catch (err) {
-        resetRecaptcha();
-        setError(getReadableAuthError(err, 'Failed to send OTP. Please try again.'));
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      if (!emailForOtp || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailForOtp)) {
-        setError('Please enter a valid email address.');
-        return;
-      }
-      setLoading(true);
-      setError('');
-      try {
-        await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
-        startOtpTimer();
-        setStep(STEPS.OTP);
-      } catch (err) {
-        setError(err.message || 'Failed to send OTP to email. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+      resetRecaptcha();
+      await setupRecaptcha();
+      await firebaseSendOtp(`+91${mobile}`);
+
+      startOtpTimer();
+      goToStep(STEPS.OTP);
+    } catch (err) {
+      resetRecaptcha();
+      setError(getReadableAuthError(err, 'Failed to send OTP. Please try again.'));
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleResendOtp = async () => {
     if (otpTimer > 0) return;
-    
     setLoading(true);
     setError('');
-    
-    if (signupMode === 'mobile') {
+
+    try {
       const preflightError = getFirebaseOtpPreflightError();
       if (preflightError) {
-        setError(preflightError);
-        setLoading(false);
-        return;
+        throw new Error(preflightError);
       }
-      try {
-        resetRecaptcha();
-        await setupRecaptcha();
-        await firebaseSendOtp(`+91${mobile}`);
-        startOtpTimer();
-      } catch (err) {
-        resetRecaptcha();
-        setError(getReadableAuthError(err, 'Failed to resend OTP.'));
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      try {
-        await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
-        startOtpTimer();
-      } catch (err) {
-        setError(err.message || 'Failed to resend OTP.');
-      } finally {
-        setLoading(false);
-      }
+      resetRecaptcha();
+      await setupRecaptcha();
+      await sendOtp(mobile, '+91', 'REGISTRATION', { useFirebase: true });
+      await firebaseSendOtp(`+91${mobile}`);
+      startOtpTimer();
+    } catch (err) {
+      resetRecaptcha();
+      setError(getReadableAuthError(err, 'Failed to resend OTP. Please try again.'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      setError('Please enter the 6-digit OTP.');
-      return;
-    }
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      let result;
-      if (signupMode === 'mobile') {
-        await firebaseVerifyOtp(otp);
-        const idToken = await getFirebaseIdToken();
-        setFirebaseIdToken(idToken);
-        result = await verifyOtp(idToken);
-      } else {
-        const { verifyEmailOtp } = await import('../services/api');
-        result = await verifyEmailOtp(emailForOtp, otp);
+      if (otp.length !== 6) {
+        throw new Error('Please enter the 6-digit OTP.');
       }
+
+      await firebaseVerifyOtp(otp);
+      const idToken = await getFirebaseIdToken();
+      setFirebaseIdToken(idToken);
+      const result = await verifyOtp(idToken);
 
       if (result.userExists) {
         saveAuthData({
@@ -216,26 +311,17 @@ function SignupPage({ onLogin }) {
           bankVerified: result.bankVerified,
           mpinCreated: result.mpinCreated,
           accountStatus: result.accountStatus,
-          name: result.fullName || result.name,
-          email: result.email || emailForOtp,
-          mobileNumber: mobile || result.mobileNumber,
+          email: result.email || email.trim(),
+          mobileNumber: result.mobileNumber || mobile,
           user: result.user,
         });
-        const role = (result.role?.toLowerCase() === 'admin' || result.role?.toLowerCase() === 'super_admin') ? 'admin' : 'user';
-        if (onLogin) onLogin(role);
-        navigate(role === 'admin' ? '/admin' : '/', { replace: true });
-      } else {
-        setSignupVerificationToken(
-          result.signupVerificationToken ||
-          result.verificationToken ||
-          result.token ||
-          '',
-        );
-        if (signupMode === 'email') {
-          setEmail(emailForOtp); // Pre-fill email in later steps
-        }
-        setStep(STEPS.PROFILE);
+        const role = ['admin', 'super_admin'].includes(String(result.role || '').toLowerCase()) ? 'admin' : 'user';
+        onLogin?.(role);
+        navigate(role === 'admin' ? '/admin' : resolveInvestorRoute(result), { replace: true });
+        return;
       }
+
+      goToStep(STEPS.PROFILE);
     } catch (err) {
       setError(getReadableAuthError(err, 'Invalid OTP. Please try again.'));
     } finally {
@@ -243,112 +329,128 @@ function SignupPage({ onLogin }) {
     }
   };
 
-  const handleProfileStep = (e) => {
-    e.preventDefault();
+  const handleProfileStep = (event) => {
+    event.preventDefault();
     if (!fullName.trim()) {
       setError('Please enter your full name.');
       return;
     }
-    if (!dateOfBirth) {
-      setError('Please enter your Date of Birth.');
-      return;
-    }
-    setError('');
-    setStep(STEPS.EMAIL);
-  };
-
-  const handleEmailStep = (e) => {
-    e.preventDefault();
-    const normalizedEmail = (email || '').trim();
-    if (!normalizedEmail) {
-      setError('Email is required.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError('Please enter a valid email address.');
       return;
     }
-    setEmail(normalizedEmail);
-    setError('');
-    setStep(STEPS.PASSWORD);
+    if (mobile.length !== 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    goToStep(STEPS.PASSWORD);
   };
 
-  const handlePasswordStep = (e) => {
-    e.preventDefault();
+  const checkReferralCode = async () => {
+    const normalizedCode = referralCode.trim().toUpperCase();
+    setReferralCode(normalizedCode);
+    if (!normalizedCode) {
+      setReferralStatus(null);
+      return true;
+    }
+
+    setReferralStatus({ state: 'checking', message: 'Checking referral code...' });
+    try {
+      const result = await validateReferralCode(normalizedCode);
+      if (!result?.valid) {
+        setReferralStatus({ state: 'invalid', message: result?.message || 'Referral code not found.' });
+        return false;
+      }
+      setReferralStatus({
+        state: 'valid',
+        message: result.referrerName ? `Referral linked to ${result.referrerName}` : 'Referral code is valid.',
+      });
+      return true;
+    } catch (err) {
+      setReferralStatus({ state: 'invalid', message: err?.message || 'Unable to validate referral code.' });
+      return false;
+    }
+  };
+
+  const handlePasswordStep = async (event) => {
+    event.preventDefault();
     const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
     if (!strongPassword.test(password)) {
-      setError('Password must have 8+ chars with uppercase, lowercase, number, and special character.');
+      setError('Password must include 8+ characters with uppercase, lowercase, number, and special character.');
       return;
     }
     if (password !== confirmPassword) {
       setError('Password and confirm password do not match.');
       return;
     }
-    setError('');
-    setStep(STEPS.LEGAL);
+    if (referralCode.trim()) {
+      await checkReferralCode();
+    }
+    goToStep(STEPS.LEGAL);
   };
 
-  const handleLegalAndRegister = async (e) => {
-    e.preventDefault();
+  const handleRegister = async (event) => {
+    event.preventDefault();
     if (!termsAccepted || !privacyAccepted || !kycConsent) {
-      setError('Please accept all required agreements.');
+      setError('Please accept all required agreements before continuing.');
       return;
     }
+
     setLoading(true);
     setError('');
+
     try {
-      let idToken = firebaseIdToken;
-      try {
-        idToken = await getFirebaseIdToken();
-        setFirebaseIdToken(idToken);
-      } catch (_) {
-        // no-op
-      }
-      const result = await registerUser({
-        idToken,
-        signupVerificationToken,
-        fullName,
-        email: signupMode === 'email' ? emailForOtp : (email || '').trim(),
+      const payload = {
+        idToken: firebaseIdToken,
+        fullName: fullName.trim(),
+        email: email.trim(),
         mobileNumber: mobile,
         password,
-        dateOfBirth,
-        referredByCode: referralCode || null,
+        referredByCode: referralStatus?.state === 'valid' ? referralCode : null,
         termsAccepted,
         privacyPolicyAccepted: privacyAccepted,
         kycConsentAccepted: kycConsent,
         riskDisclosureAccepted: true,
         investorAgreementAccepted: true,
-      });
+      };
 
-      // Automatically log the user in to retrieve the accessToken for subsequent authenticated calls (KYC / Bank)
-      let loginResult;
-      try {
-        loginResult = await loginWithEmail(signupMode === 'email' ? emailForOtp : (email || '').trim() || mobile, password);
-      } catch (loginErr) {
-        try {
-          loginResult = await loginWithEmail(mobile, password);
-        } catch (fallbackErr) {
-          console.error('Auto-login failed after registration:', fallbackErr);
-          throw new Error('Registration successful, but failed to automatically log in. Please login manually.');
-        }
-      }
+      const result = await registerUser(payload);
 
-      saveAuthData({
-        accessToken: loginResult.accessToken,
-        refreshToken: loginResult.refreshToken,
-        role: loginResult.role,
-        userId: loginResult.userId,
-        onboardingStatus: loginResult.onboardingStatus,
-        kycStatus: loginResult.kycStatus,
-        bankVerified: loginResult.bankVerified,
-        mpinCreated: loginResult.mpinCreated,
-        accountStatus: loginResult.accountStatus,
-        name: loginResult.fullName || loginResult.name || fullName,
-        email: loginResult.email || email,
+      saveOnboardingDraft({
+        fullName: fullName.trim(),
+        email: email.trim(),
         mobileNumber: mobile,
-        user: loginResult.user,
+        accountHolderName: fullName.trim(),
       });
-      setStep(STEPS.KYC);
+      saveAuthData({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        role: result.role,
+        userId: result.userId,
+        onboardingStatus: result.onboardingStatus,
+        kycStatus: result.kycStatus,
+        bankVerified: result.bankVerified,
+        mpinCreated: result.mpinCreated,
+        accountStatus: result.accountStatus,
+        name: fullName.trim(),
+        email: email.trim(),
+        mobileNumber: mobile,
+      });
+      onLogin?.('user');
+      setResultState({
+        title: 'Investor account created',
+        description: 'Your account is ready. Continue to KYC to submit PAN, Aadhaar, date of birth, address, selfie, and bank proof documents.',
+        ctaLabel: 'Continue to KYC',
+        ctaAction: () => navigate(resolveInvestorRoute({
+          kycStatus: result.kycStatus || 'NOT_SUBMITTED',
+          bankVerified: result.bankVerified,
+          accountStatus: result.accountStatus,
+          onboardingStatus: result.onboardingStatus,
+          mpinCreated: result.mpinCreated,
+        }), { replace: true }),
+      });
+
+      goToStep(STEPS.RESULT);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -356,481 +458,551 @@ function SignupPage({ onLogin }) {
     }
   };
 
-  const handleSetMpin = async (e) => {
-    e.preventDefault();
-    if (mpin.length < 4 || mpin.length > 6) {
-      setError('MPIN must be 4-6 digits.');
-      return;
-    }
-    if (mpin !== mpinConfirm) {
-      setError('MPINs do not match.');
-      return;
-    }
-    const simplePatterns = ['1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '0000', '1234', '4321', '123456', '654321'];
-    if (simplePatterns.includes(mpin)) {
-      setError('Please choose a stronger MPIN. Avoid simple patterns.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const response = await setMpin(mpin);
-      saveAuthData({
-        accessToken: getAccessToken(),
-        name: fullName,
-        email,
-        mobileNumber: mobile,
-        city: address,
-        bankName: bankName,
-        bankAccountNumber,
-        onboardingStatus: response.onboardingStatus || 'ACTIVE',
-        kycStatus: response.kycStatus || 'APPROVED',
-        bankVerified: response.bankVerified ?? true,
-        mpinCreated: response.mpinCreated ?? true,
-        accountStatus: response.accountStatus || 'ACTIVE',
-      });
-      if (onLogin) onLogin('user');
-      navigate('/', { replace: true });
-    } catch (err) {
-      setError(err.message || 'Failed to set MPIN. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const inputSx = { '& .MuiOutlinedInput-root': { borderRadius: '14px' } };
+
+  const renderContactStep = () => (
+    <form onSubmit={handleSendOtp}>
+      <Stack spacing={2.5}>
+        <Chip
+          icon={<Phone size={14} />}
+          label="Mobile OTP signup only"
+          sx={{
+            alignSelf: 'flex-start',
+            borderRadius: '999px',
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#2563eb', 0.16) : alpha('#2563eb', 0.08),
+            color: 'primary.main',
+            fontWeight: 700,
+          }}
+        />
+
+        <TextField
+          label="Mobile number"
+          placeholder="10-digit mobile number"
+          value={mobile}
+          onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+          inputProps={{ inputMode: 'numeric', maxLength: 10 }}
+          helperText="We verify signup only through mobile OTP. Email and password are collected in the next steps."
+          required
+          fullWidth
+          sx={inputSx}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Typography sx={{ fontWeight: 700, color: 'text.secondary', fontSize: 14 }}>+91</Typography>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          disabled={loading}
+          endIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+          sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+        >
+          {loading ? 'Sending OTP...' : 'Send verification code'}
+        </Button>
+      </Stack>
+    </form>
+  );
+
+  const renderOtpStep = () => (
+    <form onSubmit={handleVerifyOtp}>
+      <Stack spacing={2.5}>
+        {/* Destination badge */}
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 2,
+            py: 1,
+            borderRadius: '12px',
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(241,245,249,1)',
+            border: '1px solid',
+            borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(226,232,240,0.9)',
+            alignSelf: 'flex-start',
+          }}
+        >
+          <Phone size={14} />
+          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+            {`+91 ${mobile}`}
+          </Typography>
+        </Box>
+
+        {/* OTP digit boxes */}
+        <Box>
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', mb: 1.5 }}>Enter 6-digit OTP</Typography>
+          <Stack direction="row" spacing={1} justifyContent="space-between">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Box
+                key={i}
+                sx={{
+                  flex: 1,
+                  aspectRatio: '1',
+                  maxWidth: 52,
+                  borderRadius: '14px',
+                  border: '2px solid',
+                  borderColor: otp.length > i
+                    ? 'primary.main'
+                    : (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: otp.length > i
+                    ? (theme) => theme.palette.mode === 'dark' ? alpha('#2563eb', 0.15) : alpha('#2563eb', 0.06)
+                    : 'transparent',
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: 'primary.main',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {otp[i] || ''}
+              </Box>
+            ))}
+          </Stack>
+          <TextField
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputProps={{ inputMode: 'numeric', maxLength: 6 }}
+            required
+            fullWidth
+            autoFocus
+            sx={{
+              mt: 1.5,
+              '& .MuiOutlinedInput-root': { borderRadius: '14px' },
+              '& input': { textAlign: 'center', letterSpacing: '0.5em', fontSize: 22, fontWeight: 800, py: 1.5 },
+            }}
+          />
+        </Box>
+
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Button type="button" variant="text" size="small" onClick={goBack} startIcon={<ArrowLeft size={14} />}
+            sx={{ fontSize: 12, color: 'text.secondary' }}>
+            Change mobile
+          </Button>
+          <Button type="button" variant="text" size="small" disabled={loading || otpTimer > 0} onClick={handleResendOtp}
+            sx={{ fontSize: 12, fontWeight: 700 }}>
+            {otpTimer > 0 ? `Resend in ${otpTimer}s` : 'Resend OTP'}
+          </Button>
+        </Stack>
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          disabled={loading}
+          endIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+          sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+        >
+          {loading ? 'Verifying...' : 'Verify and continue'}
+        </Button>
+      </Stack>
+    </form>
+  );
+
+  const renderProfileStep = () => (
+    <form onSubmit={handleProfileStep}>
+      <Stack spacing={2.5}>
+        <FieldGroup label="Account details">
+          <TextField
+            label="Full name"
+            placeholder="Your full legal name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            fullWidth
+            sx={inputSx}
+          />
+          <TextField
+            label="Email address"
+            placeholder="you@example.com"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            fullWidth
+            sx={inputSx}
+          />
+          <TextField
+            label="Mobile number"
+            placeholder="10-digit mobile number"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            inputProps={{ inputMode: 'numeric', maxLength: 10 }}
+            disabled
+            required
+            fullWidth
+            sx={inputSx}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Typography sx={{ fontWeight: 700, color: 'text.secondary', fontSize: 14 }}>+91</Typography>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </FieldGroup>
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          endIcon={<ArrowRight size={16} />}
+          sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+        >
+          Continue
+        </Button>
+      </Stack>
+    </form>
+  );
+
+  const renderPasswordStep = () => (
+      <form onSubmit={handlePasswordStep}>
+        <Stack spacing={2.5}>
+          <FieldGroup label="Set password">
+            <TextField
+              label="Password"
+              placeholder="Min 8 chars, uppercase, number, symbol"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              fullWidth
+              sx={inputSx}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setShowPassword((prev) => !prev)} tabIndex={-1}>
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* Strength bar */}
+            {password && (
+              <Box>
+                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Password strength</Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, color: passwordStrength.color }}>
+                    {passwordStrength.label}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.75}>
+                  {[1, 2, 3, 4, 5].map((seg) => (
+                    <Box key={seg} sx={{
+                      flex: 1,
+                      height: 5,
+                      borderRadius: 99,
+                      bgcolor: passwordStrength.score >= seg ? passwordStrength.color : (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.2)',
+                      transition: 'background-color 0.3s ease',
+                    }} />
+                  ))}
+                </Stack>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', mt: 1, lineHeight: 1.6 }}>
+                  Use 8+ characters with uppercase, lowercase, number, and special character.
+                </Typography>
+              </Box>
+            )}
+
+            <TextField
+              label="Confirm password"
+              placeholder="Re-enter your password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              fullWidth
+              sx={inputSx}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setShowConfirmPassword((prev) => !prev)} tabIndex={-1}>
+                      {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </FieldGroup>
+
+          <FieldGroup label="Referral (optional)">
+            <TextField
+              label="Referral code"
+              placeholder="e.g. AT-ABC123"
+              value={referralCode}
+              onChange={(e) => { setReferralCode(e.target.value.toUpperCase()); setReferralStatus(null); }}
+              onBlur={checkReferralCode}
+              fullWidth
+              sx={inputSx}
+            />
+            {referralStatus?.message && (
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1,
+                  borderRadius: '10px',
+                  bgcolor: referralStatus.state === 'valid'
+                    ? (theme) => theme.palette.mode === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
+                    : referralStatus.state === 'checking'
+                      ? 'transparent'
+                      : (theme) => theme.palette.mode === 'dark' ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)',
+                }}
+              >
+                <Typography sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: referralStatus.state === 'valid' ? '#10b981' : referralStatus.state === 'checking' ? 'text.secondary' : '#ef4444',
+                }}>
+                  {referralStatus.state === 'checking' ? '⏳ ' : referralStatus.state === 'valid' ? '✓ ' : '✗ '}
+                  {referralStatus.message}
+                </Typography>
+              </Box>
+            )}
+          </FieldGroup>
+
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            fullWidth
+            endIcon={<ArrowRight size={16} />}
+            sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+          >
+            Continue
+          </Button>
+        </Stack>
+      </form>
+  );
+
+  const renderLegalStep = () => (
+    <form onSubmit={handleRegister}>
+      <Stack spacing={2.5}>
+        {/* Onboarding journey */}
+        <Box
+          sx={{
+            borderRadius: '18px',
+            border: '1px solid',
+            borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(226,232,240,0.9)',
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'inherit' }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'text.secondary' }}>Onboarding journey</Typography>
+          </Box>
+          {[
+            'Register investor account',
+            'Submit KYC profile and documents',
+            'Wait for admin approval',
+            'Link and verify bank account',
+            'Activate account',
+            'Create MPIN and access dashboard',
+          ].map((step, i) => (
+            <Stack key={step} direction="row" spacing={1.5} alignItems="center"
+              sx={{ px: 2.5, py: 1.25, borderBottom: i < 5 ? '1px solid' : 'none', borderColor: 'inherit' }}
+            >
+              <Box sx={{
+                width: 22, height: 22, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(37,99,235,0.25)' : 'rgba(37,99,235,0.1)',
+                color: 'primary.main', fontSize: 10, fontWeight: 800, flexShrink: 0,
+              }}>{i + 1}</Box>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{step}</Typography>
+            </Stack>
+          ))}
+        </Box>
+
+        {/* Consent checkboxes */}
+        <Stack spacing={1}>
+          {[
+            { state: termsAccepted, setState: setTermsAccepted, label: 'I accept the', link: '/terms-and-conditions', linkLabel: 'Terms and Conditions' },
+            { state: privacyAccepted, setState: setPrivacyAccepted, label: 'I accept the', link: '/privacy-policy', linkLabel: 'Privacy Policy' },
+          ].map((item) => (
+            <Box key={item.linkLabel}
+              sx={{
+                px: 2, py: 1.5, borderRadius: '14px', border: '1px solid',
+                borderColor: item.state ? 'primary.main' : (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(226,232,240,0.9)',
+                bgcolor: item.state ? (theme) => theme.palette.mode === 'dark' ? alpha('#2563eb', 0.1) : alpha('#2563eb', 0.04) : 'transparent',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <FormControlLabel
+                control={<Checkbox checked={item.state} onChange={(e) => item.setState(e.target.checked)} size="small" />}
+                label={
+                  <Typography sx={{ fontSize: 13 }}>
+                    {item.label}{' '}
+                    <Link to={item.link} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>{item.linkLabel}</Link>
+                  </Typography>
+                }
+                sx={{ m: 0 }}
+              />
+            </Box>
+          ))}
+          <Box
+            sx={{
+              px: 2, py: 1.5, borderRadius: '14px', border: '1px solid',
+              borderColor: kycConsent ? 'primary.main' : (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(226,232,240,0.9)',
+              bgcolor: kycConsent ? (theme) => theme.palette.mode === 'dark' ? alpha('#2563eb', 0.1) : alpha('#2563eb', 0.04) : 'transparent',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <FormControlLabel
+              control={<Checkbox checked={kycConsent} onChange={(e) => setKycConsent(e.target.checked)} size="small" />}
+              label={<Typography sx={{ fontSize: 13 }}>I consent to KYC verification and investor communication.</Typography>}
+              sx={{ m: 0 }}
+            />
+          </Box>
+        </Stack>
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          fullWidth
+          disabled={loading}
+          endIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+          sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+        >
+          {loading ? 'Creating account...' : 'Create investor account'}
+        </Button>
+      </Stack>
+    </form>
+  );
+
+  const renderResultStep = () => (
+    <Stack spacing={3} alignItems="flex-start">
+      {/* Success icon */}
+      <Box
+        sx={{
+          width: 72,
+          height: 72,
+          borderRadius: '24px',
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: 'rgba(16,185,129,0.12)',
+          color: '#10b981',
+        }}
+      >
+        <CheckCircle2 size={38} strokeWidth={2} />
+      </Box>
+
+      <Box sx={{ width: '100%' }}>
+        <Typography variant="h5" sx={{ fontWeight: 800, fontSize: { xs: 22, sm: 26 } }}>
+          {resultState?.title || 'Registration complete'}
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 1.25, lineHeight: 1.8, fontSize: 14 }}>
+          {resultState?.description || 'Your signup has been completed.'}
+        </Typography>
+
+        {/* Next steps */}
+        <Box
+          sx={{
+            mt: 2.5,
+            borderRadius: '18px',
+            border: '1px solid',
+            borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(226,232,240,0.9)',
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{ px: 2.5, py: 1.75, borderBottom: '1px solid', borderColor: 'inherit' }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'text.secondary' }}>What happens next</Typography>
+          </Box>
+          {[
+            'Submit KYC profile details and documents',
+            'Wait for admin review and KYC approval',
+            'Link bank account after approval',
+            'Activate account and create MPIN',
+            'Access your full investor dashboard',
+          ].map((step, i) => (
+            <Stack key={step} direction="row" spacing={1.5} alignItems="center"
+              sx={{ px: 2.5, py: 1.25, borderBottom: i < 4 ? '1px solid' : 'none', borderColor: 'inherit' }}
+            >
+              <Box sx={{
+                width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                bgcolor: 'rgba(16,185,129,0.12)', color: '#10b981', fontSize: 9, fontWeight: 800, flexShrink: 0,
+              }}>{i + 1}</Box>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{step}</Typography>
+            </Stack>
+          ))}
+        </Box>
+
+        {resultState?.note && (
+          <Alert severity="info" sx={{ mt: 2, borderRadius: '14px' }}>
+            {resultState.note}
+          </Alert>
+        )}
+      </Box>
+
+      <Button
+        variant="contained"
+        size="large"
+        fullWidth
+        endIcon={<ArrowRight size={16} />}
+        onClick={resultState?.ctaAction}
+        sx={{ borderRadius: '14px', py: 1.5, fontWeight: 700, boxShadow: '0 8px 24px rgba(37,99,235,0.28)' }}
+      >
+        {resultState?.ctaLabel || 'Continue'}
+      </Button>
+    </Stack>
+  );
+
+  const stepRenderer = {
+    [STEPS.CONTACT]: renderContactStep,
+    [STEPS.OTP]: renderOtpStep,
+    [STEPS.PROFILE]: renderProfileStep,
+    [STEPS.PASSWORD]: renderPasswordStep,
+    [STEPS.LEGAL]: renderLegalStep,
+    [STEPS.RESULT]: renderResultStep,
   };
 
-  const handleKycStep = async (e) => {
-    e.preventDefault();
-    const pan = panNumber.trim().toUpperCase();
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
-      setError('Please enter valid PAN (e.g. ABCDE1234F).');
-      return;
-    }
-    if (!/^\d{12}$/.test(aadhaarNumber)) {
-      setError('Please enter a valid 12-digit Aadhaar number.');
-      return;
-    }
-    if (!dateOfBirth) {
-      setError('Please enter your Date of Birth.');
-      return;
-    }
-    if (!address.trim()) {
-      setError('Please enter your Address.');
-      return;
-    }
-    if (!panProofFile) {
-      setError('Please upload PAN proof document.');
-      return;
-    }
-    if (!aadhaarProofFile) {
-      setError('Please upload Aadhaar Front proof document.');
-      return;
-    }
-    if (!aadhaarBackFile) {
-      setError('Please upload Aadhaar Back proof document.');
-      return;
-    }
-    if (!bankPassbookFile) {
-      setError('Please upload Bank Passbook / Statement proof.');
-      return;
-    }
-    if (!selfieProofFile) {
-      setError('Please upload selfie/liveness proof.');
-      return;
-    }
-    if (!selfieDone) {
-      setError('Please confirm selfie/liveness step.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      await submitKyc({
-        panCardImage: panProofFile,
-        aadhaarFrontImage: aadhaarProofFile,
-        aadhaarBackImage: aadhaarBackFile,
-        selfiePhoto: selfieProofFile,
-        bankPassbookOrStatement: bankPassbookFile,
-        panNumber: pan,
-        aadhaarLast4: aadhaarNumber.slice(-4),
-        dateOfBirth,
-        address,
-      });
-      saveAuthData({
-        kycStatus: 'PENDING'
-      });
-      setStep(STEPS.ACTIVATION);
-    } catch (err) {
-      setError(err.message || 'Failed to submit KYC details. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleComplete = () => {
-    saveAuthData({
-      name: fullName,
-      email,
-      mobileNumber: mobile,
-      city: '',
-      bankName: bankName,
-      bankAccountNumber,
-      upiId: '',
-    });
-    if (onLogin) onLogin('user');
-    navigate('/', { replace: true });
-  };
-
-  const stepConfig = {
-    [STEPS.MOBILE]: { icon: signupMode === 'email' ? <Mail className="h-6 w-6 text-blue-600" /> : <Phone className="h-6 w-6 text-blue-600" />, title: 'Create Account', subtitle: 'We will send a 6-digit OTP to verify your identity.' },
-    [STEPS.OTP]: { icon: <KeyRound className="h-6 w-6 text-blue-600" />, title: 'Verify OTP', subtitle: `Enter the OTP sent to ${signupMode === 'email' ? emailForOtp : `+91 ${mobile}`}` },
-    [STEPS.PROFILE]: { icon: <UserPlus className="h-6 w-6 text-blue-600" />, title: 'Your Details', subtitle: 'Enter your personal information to continue.' },
-    [STEPS.EMAIL]: { icon: <Mail className="h-6 w-6 text-blue-600" />, title: 'Email Address', subtitle: 'Optionally add your email address.' },
-    [STEPS.PASSWORD]: { icon: <KeyRound className="h-6 w-6 text-blue-600" />, title: 'Create Password', subtitle: 'Use a strong password for your account.' },
-    [STEPS.LEGAL]: { icon: <Fingerprint className="h-6 w-6 text-blue-600" />, title: 'Accept Terms', subtitle: 'Accept terms, privacy policy, and KYC consent.' },
-    [STEPS.KYC]: { icon: <UserPlus className="h-6 w-6 text-blue-600" />, title: 'Complete KYC', subtitle: 'Provide PAN, Aadhaar, and selfie/liveness.' },
-    [STEPS.ACTIVATION]: { icon: <CheckCircle2 className="h-6 w-6 text-emerald-600" />, title: 'Account Activated', subtitle: 'Your account has been created successfully.' },
-    [STEPS.MPIN]: { icon: <ShieldCheck className="h-6 w-6 text-blue-600" />, title: 'Create MPIN', subtitle: 'Set a 4-6 digit MPIN for secure actions.' },
-  };
-
-  const current = stepConfig[step];
-  const passwordStrength = getPasswordStrength(password);
-  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const stepLabels = stepSequence.map((s) => stepMeta[s].label);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 sm:px-6">
-      <div className="w-full max-w-md overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.12)]">
-        <div className="relative overflow-hidden bg-slate-900 px-8 pb-6 pt-8 text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.3),transparent_40%)]" />
-          <div className="relative flex items-center justify-between">
-            {step > STEPS.MOBILE && step < STEPS.SUCCESS ? (
-              <button onClick={() => { setError(''); setStep((s) => s - 1); }} className="rounded-full p-2 transition hover:bg-white/10">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-            ) : <div className="h-9 w-9" />}
-            <div className="text-sm font-medium uppercase tracking-widest text-blue-400">Step {step} of {TOTAL_STEPS}</div>
-            <div className="h-9 w-9" />
-          </div>
-          <div className="mt-6 flex items-center justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-xl">{current.icon}</div>
-          </div>
-          <div className="mt-6 text-center">
-            <h2 className="font-heading text-2xl font-bold">{current.title}</h2>
-            <p className="mt-2 text-sm text-slate-300">{current.subtitle}</p>
-          </div>
-        </div>
+    <>
+      <AuthShell
+        eyebrow="Investor Signup"
+        title={currentStepMeta.title}
+        subtitle={currentStepMeta.subtitle}
+        sideLabel="Guided Onboarding"
+        sideTitle="A streamlined signup flow that matches the backend investor onboarding contract."
+        sideDescription="Registration is lightweight — KYC, bank verification, activation, and MPIN happen as separate guided onboarding steps after account creation."
+        sideHighlights={sideHighlights}
+        progress={progress}
+        currentStepLabel={currentStepMeta.label}
+        totalStepLabel={`Step ${stepIndex + 1} of ${stepSequence.length}`}
+        stepLabels={stepLabels}
+        error={error}
+        footer={
+          <>
+            Already registered?{' '}
+            <Link to="/login" style={{ fontWeight: 700, textDecoration: 'underline' }}>Sign in here</Link>
+          </>
+        }
+      >
+        <Stack spacing={2.5}>
+          {step !== STEPS.CONTACT && step !== STEPS.RESULT ? (
+            <Button
+              variant="text"
+              onClick={goBack}
+              startIcon={<ArrowLeft size={15} />}
+              sx={{ alignSelf: 'flex-start', fontSize: 13, color: 'text.secondary', px: 0 }}
+            >
+              Back
+            </Button>
+          ) : null}
+          {stepRenderer[step]()}
+        </Stack>
+      </AuthShell>
 
-        <div className="px-8 py-8">
-          {error && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-
-          {step === STEPS.MOBILE && (
-            <form onSubmit={handleSendOtp} className="space-y-5">
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-4">
-                <button
-                  type="button"
-                  onClick={() => { setSignupMode('email'); setError(''); }}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${signupMode === 'email' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSignupMode('mobile'); setError(''); }}
-                  className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${signupMode === 'mobile' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Mobile Number
-                </button>
-              </div>
-
-              {signupMode === 'mobile' ? (
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Mobile Number</label>
-                  <div className="flex gap-2">
-                    <div className="input-shell flex w-16 items-center justify-center bg-slate-50 font-medium text-slate-500">+91</div>
-                    <input type="tel" required maxLength={10} value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} className="input-shell flex-1" placeholder="Enter 10-digit number" autoFocus />
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Email Address</label>
-                  <input type="email" required value={emailForOtp} onChange={(e) => setEmailForOtp(e.target.value)} className="input-shell" placeholder="you@example.com" autoFocus />
-                </div>
-              )}
-              
-              <button id="send-otp-btn" type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Send OTP</span><ArrowRight className="h-4 w-4" /></>}</button>
-              <div className="mt-4 text-center text-sm text-slate-600">Already have an account? <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">Log in</Link></div>
-            </form>
-          )}
-
-          {step === STEPS.OTP && (
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">6-Digit OTP</label>
-                <input type="text" required maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-xl tracking-[0.5em]" placeholder="* * * * * *" autoFocus />
-              </div>
-              <div className="text-center">{otpTimer > 0 ? <span className="text-sm text-slate-400">Resend OTP in {otpTimer}s</span> : <button id="resend-otp-btn" type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50">Resend OTP</button>}</div>
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Verify OTP</span><ArrowRight className="h-4 w-4" /></>}</button>
-            </form>
-          )}
-
-          {step === STEPS.PROFILE && (
-            <form onSubmit={handleProfileStep} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Full Name</label>
-                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="input-shell" placeholder="Enter your full name" autoFocus />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Date of Birth</label>
-                <input type="date" required value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className="input-shell" />
-              </div>
-              <button type="submit" className="btn-primary w-full"><span>Continue</span><ArrowRight className="h-4 w-4" /></button>
-            </form>
-          )}
-
-          {step === STEPS.EMAIL && (
-            <form onSubmit={handleEmailStep} className="space-y-4">
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">Email Address <span className="text-slate-400 font-normal">(optional)</span></label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-shell" placeholder="you@example.com" autoFocus /></div>
-              <button type="submit" className="btn-primary w-full"><span>Continue</span><ArrowRight className="h-4 w-4" /></button>
-              <button type="button" onClick={() => { setEmail(''); setError(''); setStep(STEPS.PASSWORD); }} className="btn-secondary w-full"><span>Skip</span></button>
-            </form>
-          )}
-
-          {step === STEPS.PASSWORD && (
-            <form onSubmit={handlePasswordStep} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-shell pr-11"
-                    placeholder="Min 8 chars, uppercase, number, special"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {password.length > 0 && (
-                  <div className="mt-2">
-                    <div className="h-1.5 w-full rounded-full bg-slate-200">
-                      <div
-                        className={`h-1.5 rounded-full transition-all ${
-                          passwordStrength.label === 'Weak'
-                            ? 'bg-rose-500'
-                            : passwordStrength.label === 'Medium'
-                              ? 'bg-amber-500'
-                              : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">Strength: {passwordStrength.label}</p>
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Confirm Password</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="input-shell pr-11"
-                    placeholder="Re-enter password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {confirmPassword.length > 0 && (
-                  <p className={`mt-1 text-xs ${passwordsMatch ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
-                  </p>
-                )}
-              </div>
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">Referral Code <span className="text-slate-400 font-normal">(optional)</span></label><input type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value)} className="input-shell" placeholder="Enter referral code" /></div>
-              <button type="submit" className="btn-primary w-full"><span>Continue</span><ArrowRight className="h-4 w-4" /></button>
-            </form>
-          )}
-
-          {step === STEPS.LEGAL && (
-            <form onSubmit={handleLegalAndRegister} className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                This is the final step. Review the Terms and Conditions before activating your account.
-              </div>
-
-              <div className="overflow-hidden rounded-3xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
-                  <thead className="bg-slate-100">
-                    <tr>
-                      <th className="px-4 py-3 text-sm font-semibold text-slate-800">Feature</th>
-                      <th className="px-4 py-3 text-sm font-semibold text-slate-800">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Minimum Investment</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">Rs10,000</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Maximum Investment</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">Rs10,00,000</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Lock-in Period</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">6 Months</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Monthly Interest</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">10%</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Interest Credit</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">Wallet</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Wallet Withdrawal Minimum</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">Rs1,000</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Withdrawal Approval</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">Admin Approval</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Investment Completion Return</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">90%</td></tr>
-                    <tr className="border-t border-slate-200"><td className="px-4 py-3 text-sm text-slate-600">Early Withdrawal Return</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">70%</td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="space-y-2 text-sm text-slate-600">
-                <p>All returns and payout timelines are subject to verification and platform policy updates.</p>
-                <p>Any fraud, policy abuse, or invalid KYC or payment information may result in account suspension.</p>
-                <p>By continuing, you acknowledge that these terms may be revised from time to time.</p>
-              </div>
-
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3">
-                <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600" />
-                <span className="text-sm text-slate-700">I accept Terms and Conditions <span className="text-rose-600">*</span> (<Link to="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">read full page</Link>)</span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3">
-                <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600" />
-                <span className="text-sm text-slate-700">I accept Privacy Policy <span className="text-rose-600">*</span> (<Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">read full page</Link>)</span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3">
-                <input type="checkbox" checked={kycConsent} onChange={(e) => setKycConsent(e.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600" />
-                <span className="text-sm text-slate-700">I consent to KYC verification and SMS/WhatsApp communication <span className="text-rose-600">*</span></span>
-              </label>
-
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Accept & Create Account</span><ArrowRight className="h-4 w-4" /></>}</button>
-            </form>
-          )}
-
-          {step === STEPS.MPIN && (
-            <form onSubmit={handleSetMpin} className="space-y-5">
-              <div><label className="mb-2 block text-sm font-medium text-slate-700">Set MPIN</label><input type="password" required maxLength={6} minLength={4} value={mpin} onChange={(e) => setMpinValue(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-2xl tracking-[0.5em]" placeholder="* * * *" autoFocus /></div>
-              <div><label className="mb-2 block text-sm font-medium text-slate-700">Confirm MPIN</label><input type="password" required maxLength={6} minLength={4} value={mpinConfirm} onChange={(e) => setMpinConfirm(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-2xl tracking-[0.5em]" placeholder="* * * *" /></div>
-              <p className="text-center text-xs text-slate-500">Do not use simple patterns like 1234 or 1111.</p>
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Set MPIN</span><ArrowRight className="h-4 w-4" /></>}</button>
-            </form>
-          )}
-
-
-          {step === STEPS.KYC && (
-            <form onSubmit={handleKycStep} className="space-y-4">
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">PAN Number</label><input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="input-shell" placeholder="ABCDE1234F" required /></div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Upload PAN Proof</label>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setPanProofFile(e.target.files?.[0] || null)}
-                  className="input-shell"
-                  required
-                />
-                {panProofFile && <p className="mt-1 text-xs text-emerald-600">Selected: {panProofFile.name}</p>}
-              </div>
-              <div><label className="mb-1.5 block text-sm font-medium text-slate-700">Aadhaar Number</label><input type="text" maxLength={12} value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))} className="input-shell" placeholder="12-digit Aadhaar number" required /></div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Upload Aadhaar Front Proof</label>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setAadhaarProofFile(e.target.files?.[0] || null)}
-                  className="input-shell"
-                  required
-                />
-                {aadhaarProofFile && <p className="mt-1 text-xs text-emerald-600">Selected: {aadhaarProofFile.name}</p>}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Upload Aadhaar Back Proof</label>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setAadhaarBackFile(e.target.files?.[0] || null)}
-                  className="input-shell"
-                  required
-                />
-                {aadhaarBackFile && <p className="mt-1 text-xs text-emerald-600">Selected: {aadhaarBackFile.name}</p>}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Date of Birth</label>
-                <input
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="input-shell"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Address</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="input-shell"
-                  placeholder="Enter your full address"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Upload Bank Passbook / Statement Proof</label>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setBankPassbookFile(e.target.files?.[0] || null)}
-                  className="input-shell"
-                  required
-                />
-                {bankPassbookFile && <p className="mt-1 text-xs text-emerald-600">Selected: {bankPassbookFile.name}</p>}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Upload Selfie / Liveness Proof</label>
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={(e) => setSelfieProofFile(e.target.files?.[0] || null)}
-                  className="input-shell"
-                  required
-                />
-                {selfieProofFile && <p className="mt-1 text-xs text-emerald-600">Selected: {selfieProofFile.name}</p>}
-              </div>
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><input type="checkbox" checked={selfieDone} onChange={(e) => setSelfieDone(e.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600" /><span className="text-sm text-slate-600">Selfie / liveness capture completed</span></label>
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Submit KYC Documents</span><ArrowRight className="h-4 w-4" /></>}</button>
-            </form>
-          )}
-
-
-
-          {step === STEPS.ACTIVATION && (
-            <div className="text-center">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 className="h-10 w-10" /></div>
-              <h3 className="font-heading text-xl font-bold text-slate-900">Account Created Successfully</h3>
-              <p className="mt-2 text-sm text-slate-500">Your account has been created. Set up your MPIN to secure your account.</p>
-              <div className="pt-6"><button type="button" onClick={() => { setError(''); setStep(STEPS.MPIN); }} className="btn-primary w-full"><span>Continue to MPIN Setup</span><ArrowRight className="h-4 w-4" /></button></div>
-            </div>
-          )}
-        </div>
-
-        <div className="h-1.5 w-full bg-slate-100">
-          <div className="h-full bg-blue-600 transition-all duration-500 ease-out" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
-        </div>
-      </div>
       <div id="recaptcha-container" />
-    </div>
+    </>
   );
 }
 

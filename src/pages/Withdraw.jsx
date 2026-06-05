@@ -4,7 +4,7 @@ import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { getOwnWithdrawals, requestWithdrawal, getWallet } from '../services/api';
+import { getOwnWithdrawals, requestWithdrawal, getWallet, getWithdrawalSettings } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 function toArray(payload) {
@@ -15,11 +15,34 @@ function toArray(payload) {
   return [];
 }
 
+const DEFAULT_WITHDRAWAL_SETTINGS = {
+  withdrawalEnabled: true,
+  minimumWithdrawalAmount: 1000,
+  maximumWithdrawalAmount: 0,
+  dailyWithdrawalLimit: 0,
+  monthlyWithdrawalLimit: 0,
+  processingTime: '24 hours',
+  preferredMethod: 'Bank Transfer',
+};
+
+function normalizeSettings(settings) {
+  return {
+    ...DEFAULT_WITHDRAWAL_SETTINGS,
+    ...(settings || {}),
+    withdrawalEnabled: settings?.withdrawalEnabled !== false,
+    minimumWithdrawalAmount: Number(settings?.minimumWithdrawalAmount ?? settings?.minWithdrawal ?? DEFAULT_WITHDRAWAL_SETTINGS.minimumWithdrawalAmount),
+    maximumWithdrawalAmount: Number(settings?.maximumWithdrawalAmount ?? settings?.maxWithdrawal ?? DEFAULT_WITHDRAWAL_SETTINGS.maximumWithdrawalAmount),
+    dailyWithdrawalLimit: Number(settings?.dailyWithdrawalLimit ?? DEFAULT_WITHDRAWAL_SETTINGS.dailyWithdrawalLimit),
+    monthlyWithdrawalLimit: Number(settings?.monthlyWithdrawalLimit ?? DEFAULT_WITHDRAWAL_SETTINGS.monthlyWithdrawalLimit),
+  };
+}
+
 function Withdraw() {
   const [amount, setAmount] = useState('1000');
   const [method, setMethod] = useState('Bank Transfer');
   const [history, setHistory] = useState([]);
   const [walletData, setWalletData] = useState({});
+  const [withdrawalSettings, setWithdrawalSettings] = useState(DEFAULT_WITHDRAWAL_SETTINGS);
   const [message, setMessage] = useState('');
 
   const mapWithdrawal = (item, index) => ({
@@ -30,21 +53,27 @@ function Withdraw() {
     status: item.status || 'Pending',
   });
 
-  const minWithdrawal = Number(walletData.minWithdrawal ?? 1000);
+  const minWithdrawal = Number(withdrawalSettings.minimumWithdrawalAmount ?? 1000);
+  const maxWithdrawal = Number(withdrawalSettings.maximumWithdrawalAmount ?? 0);
+  const availableBalance = Number(walletData.availableBalance ?? walletData.balance ?? 0);
 
   useEffect(() => {
     let active = true;
-    Promise.all([getOwnWithdrawals(), getWallet()])
-      .then(([withdrawalsRes, walletRes]) => {
+    Promise.all([getOwnWithdrawals(), getWallet(), getWithdrawalSettings()])
+      .then(([withdrawalsRes, walletRes, settingsRes]) => {
         if (!active) return;
         setHistory(toArray(withdrawalsRes).map(mapWithdrawal));
         const walletPayload = walletRes?.data || walletRes || {};
         setWalletData(walletPayload.wallet || walletPayload || {});
+        const normalizedSettings = normalizeSettings(walletPayload.withdrawalSettings || settingsRes);
+        setWithdrawalSettings(normalizedSettings);
+        setAmount(String(normalizedSettings.minimumWithdrawalAmount));
       })
       .catch(() => {
         if (!active) return;
         setHistory([]);
         setWalletData({});
+        setWithdrawalSettings(DEFAULT_WITHDRAWAL_SETTINGS);
       });
 
     return () => {
@@ -54,8 +83,20 @@ function Withdraw() {
 
   const handleSubmit = async () => {
     const value = Number(amount || 0);
+    if (!withdrawalSettings.withdrawalEnabled) {
+      setMessage('Withdrawals are currently disabled by admin.');
+      return;
+    }
     if (value < minWithdrawal) {
       setMessage(`Minimum withdrawal amount is ${formatCurrency(minWithdrawal)}.`);
+      return;
+    }
+    if (maxWithdrawal > 0 && value > maxWithdrawal) {
+      setMessage(`Maximum withdrawal per request is ${formatCurrency(maxWithdrawal)}.`);
+      return;
+    }
+    if (value > availableBalance) {
+      setMessage(`Amount exceeds available balance of ${formatCurrency(availableBalance)}.`);
       return;
     }
 
@@ -77,12 +118,12 @@ function Withdraw() {
 
   const stats = useMemo(
     () => [
-      { title: 'Available Balance', value: Number(walletData.availableBalance ?? walletData.balance ?? 0), icon: Wallet, tone: 'blue', valueType: 'currency', note: 'current wallet balance' },
+      { title: 'Available Balance', value: availableBalance, icon: Wallet, tone: 'blue', valueType: 'currency', note: 'current wallet balance' },
       { title: 'Minimum Withdrawal', value: minWithdrawal, icon: Banknote, tone: 'amber', valueType: 'currency', note: 'required minimum' },
-      { title: 'Review Window', value: walletData.processingTime || '24 hours', icon: ShieldCheck, tone: 'emerald', note: 'standard approval time' },
-      { title: 'Method', value: walletData.preferredMethod || method, icon: CreditCard, tone: 'violet', note: 'currently selected' },
+      { title: 'Maximum Request', value: maxWithdrawal > 0 ? maxWithdrawal : 'Unlimited', icon: ShieldCheck, tone: 'emerald', valueType: maxWithdrawal > 0 ? 'currency' : 'text', note: 'per request' },
+      { title: 'Method', value: withdrawalSettings.preferredMethod || method, icon: CreditCard, tone: 'violet', note: withdrawalSettings.processingTime || 'standard review' },
     ],
-    [walletData, minWithdrawal, method],
+    [availableBalance, minWithdrawal, maxWithdrawal, withdrawalSettings, method],
   );
 
   const columns = [
@@ -127,6 +168,8 @@ function Withdraw() {
                 className="input-shell"
                 value={amount}
                 min={minWithdrawal}
+                max={maxWithdrawal > 0 ? maxWithdrawal : undefined}
+                disabled={!withdrawalSettings.withdrawalEnabled}
                 onChange={(event) => setAmount(event.target.value)}
               />
             </div>
@@ -145,10 +188,11 @@ function Withdraw() {
           <div className="mt-5 rounded-[24px] border border-blue-100 bg-blue-50 p-5 text-sm leading-7 text-blue-700">
             Preview: You are requesting <strong>{formatCurrency(Number(amount || 0))}</strong> via{' '}
             <strong>{method}</strong>. Withdrawals start from{' '}
-            <strong>{formatCurrency(minWithdrawal)}</strong>.
+            <strong>{formatCurrency(minWithdrawal)}</strong>
+            {maxWithdrawal > 0 ? <> and max out at <strong>{formatCurrency(maxWithdrawal)}</strong> per request</> : null}.
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <button type="button" onClick={handleSubmit} className="btn-primary">Submit Request</button>
+            <button type="button" onClick={handleSubmit} className="btn-primary" disabled={!withdrawalSettings.withdrawalEnabled}>Submit Request</button>
             <button type="button" onClick={handleReset} className="btn-secondary">Reset</button>
           </div>
           {message && <p className="mt-4 text-sm text-slate-500">{message}</p>}
@@ -157,10 +201,16 @@ function Withdraw() {
         <SectionCard title="Withdrawal Notes" subtitle="Important information before you submit.">
           <div className="space-y-4">
             <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              Available balance: <span className="font-semibold text-slate-900">{formatCurrency(Number(walletData.availableBalance ?? walletData.balance ?? 0))}</span>
+              Available balance: <span className="font-semibold text-slate-900">{formatCurrency(availableBalance)}</span>
             </div>
             <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-              Standard processing: <span className="font-semibold text-slate-900">{walletData.processingTime || 'within 24 hours'}</span>
+              Standard processing: <span className="font-semibold text-slate-900">{withdrawalSettings.processingTime || 'within 24 hours'}</span>
+            </div>
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+              Daily limit: <span className="font-semibold text-slate-900">{withdrawalSettings.dailyWithdrawalLimit > 0 ? formatCurrency(withdrawalSettings.dailyWithdrawalLimit) : 'No daily cap'}</span>
+            </div>
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+              Monthly limit: <span className="font-semibold text-slate-900">{withdrawalSettings.monthlyWithdrawalLimit > 0 ? formatCurrency(withdrawalSettings.monthlyWithdrawalLimit) : 'No monthly cap'}</span>
             </div>
             <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
               Payout verification: <span className="font-semibold text-slate-900">bank/KYC must remain verified</span>

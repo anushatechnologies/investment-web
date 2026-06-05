@@ -18,6 +18,7 @@ import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import {
   adminGetFraudAlerts,
+  adminGetFraudRules,
   adminGetUsers,
   adminResolveFraudAlert,
   adminSuspendUser,
@@ -29,6 +30,7 @@ const statTones = ['rose', 'amber', 'cyan', 'blue'];
 
 function FraudMonitoringPage() {
   const [activities, setActivities] = useState([]);
+  const [ruleSignals, setRuleSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -40,9 +42,10 @@ function FraudMonitoringPage() {
     setLoading(true);
     setError('');
     try {
-      const [alertsRes, usersRes] = await Promise.all([
+      const [alertsRes, usersRes, rulesRes] = await Promise.all([
         adminGetFraudAlerts(),
         adminGetUsers().catch(() => []),
+        adminGetFraudRules().catch(() => ({})),
       ]);
 
       const alerts = toArray(alertsRes);
@@ -68,10 +71,23 @@ function FraudMonitoringPage() {
       });
 
       setActivities(mapped);
+      setRuleSignals([
+        ...toArray(rulesRes.duplicatePan),
+        ...toArray(rulesRes.duplicateAadhaarLast4),
+        ...toArray(rulesRes.duplicateBankAccounts),
+        ...toArray(rulesRes.highVelocityReferrers),
+      ].map((item, index) => ({
+        id: `${item.rule || 'signal'}-${index}`,
+        rule: item.rule,
+        severity: item.severity,
+        count: item.count,
+        value: item.value || item.name || '-',
+      })));
     } catch (err) {
       console.error('Failed to load fraud alerts', err);
       setError(err.message || 'Failed to load fraud alerts.');
       setActivities([]);
+      setRuleSignals([]);
     } finally {
       setLoading(false);
     }
@@ -219,6 +235,22 @@ function FraudMonitoringPage() {
         filterOptions={Array.from(new Set(activities.map((item) => item.riskLevel))).sort()}
         itemsPerPage={20}
         emptyMessage={loading ? 'Loading fraud alerts...' : 'No fraud alerts found.'}
+      />
+
+      <DataTable
+        title="Automated Fraud Rule Signals"
+        description="Duplicate PAN, Aadhaar last 4, bank account, and high referral velocity checks."
+        data={ruleSignals}
+        columns={[
+          { key: 'rule', label: 'Rule' },
+          { key: 'severity', label: 'Severity', render: (row) => <StatusBadge label={row.severity} /> },
+          { key: 'count', label: 'Count' },
+          { key: 'value', label: 'Masked Value / User' },
+        ]}
+        searchableKeys={['rule', 'severity', 'value']}
+        filterKey="severity"
+        filterOptions={['MEDIUM', 'HIGH']}
+        emptyMessage={loading ? 'Loading rule signals...' : 'No automated fraud rule signals found.'}
       />
 
       <Dialog open={Boolean(viewedActivity)} onClose={() => setViewedActivity(null)} fullWidth maxWidth="sm">

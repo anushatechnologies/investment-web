@@ -113,6 +113,7 @@ function InvestmentsPage() {
     {
       key: 'investorName',
       label: 'Investor',
+      exportValue: (row) => row.investorName,
       render: (row) => (
         <div>
           <p className="font-semibold text-white">{row.investorName}</p>
@@ -124,21 +125,25 @@ function InvestmentsPage() {
     {
       key: 'amount',
       label: 'Amount',
+      exportValue: (row) => row.amount,
       render: (row) => formatCurrency(row.amount),
     },
     {
       key: 'monthlyInterestRate',
       label: 'Interest',
+      exportValue: (row) => row.monthlyInterestRate,
       render: (row) => `${row.monthlyInterestRate}%`,
     },
     {
       key: 'receiptApproved',
       label: 'Receipt',
+      exportValue: (row) => (row.receiptApproved ? 'APPROVED' : 'PENDING'),
       render: (row) => <StatusBadge label={row.receiptApproved ? 'APPROVED' : 'PENDING'} />,
     },
     {
       key: 'status',
       label: 'Status',
+      exportValue: (row) => row.status,
       render: (row) => <StatusBadge label={row.status} />,
     },
     {
@@ -238,6 +243,8 @@ function InvestmentsPage() {
         filterOptions={statusOptions}
         emptyMessage={loading ? 'Loading investments...' : 'No investments found.'}
         itemsPerPage={20}
+        enableCsvExport
+        exportFileName="investment-book"
       />
 
       <Dialog open={Boolean(selectedInvestment)} onClose={() => setSelectedInvestment(null)} fullWidth maxWidth="sm">

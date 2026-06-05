@@ -3,6 +3,8 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded';
+import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
+import WbSunnyRoundedIcon from '@mui/icons-material/WbSunnyRounded';
 import {
   AppBar,
   Avatar,
@@ -14,11 +16,12 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useLocation } from 'react-router-dom';
 import { adminProfile } from '../../data/adminData';
 import { useEffect, useState } from 'react';
-import { getNotifications } from '../../services/api';
+import { getNotificationSummary } from '../../services/api';
+import { useAppTheme } from '../../theme/ThemeContext';
 
 const pageMeta = {
   '/admin': {
@@ -82,21 +85,25 @@ function AdminHeader({ onOpenSidebar }) {
   const { pathname } = useLocation();
   const meta = pageMeta[pathname] ?? pageMeta['/admin'];
   const [unreadCount, setUnreadCount] = useState(0);
+  const theme = useTheme();
+  const { mode, toggleTheme } = useAppTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const textPrimary = isDark ? '#ffffff' : '#0f172a';
+  const textMuted = alpha(isDark ? '#ffffff' : '#0f172a', isDark ? 0.62 : 0.58);
+  const panelBg = isDark ? 'rgba(15,23,42,0.68)' : 'rgba(255,255,255,0.88)';
+  const panelBorder = isDark ? 'rgba(148,163,184,0.16)' : 'rgba(148,163,184,0.24)';
+  const commandBg = isDark
+    ? 'linear-gradient(135deg, rgba(8,17,37,0.92), rgba(11,26,57,0.86))'
+    : 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.9))';
 
   useEffect(() => {
     let active = true;
 
     const fetchNotifications = () => {
-      getNotifications()
+      getNotificationSummary()
         .then((response) => {
           if (!active) return;
-          const list = Array.isArray(response) ? response
-            : Array.isArray(response?.data) ? response.data
-              : Array.isArray(response?.items) ? response.items
-                : Array.isArray(response?.notifications) ? response.notifications
-                  : [];
-          const unread = list.filter((item) => !(item.read || item.isRead)).length;
-          setUnreadCount(unread);
+          setUnreadCount(Number(response?.unreadNotifications ?? response?.unreadCount ?? 0));
         })
         .catch(() => {
           if (!active) return;
@@ -119,70 +126,141 @@ function AdminHeader({ onOpenSidebar }) {
       color="transparent"
       elevation={0}
       sx={{
-        backdropFilter: 'blur(22px)',
-        backgroundColor: 'rgba(5, 13, 29, 0.82)',
-        borderBottom: '1px solid rgba(148,163,184,0.14)',
-        boxShadow: '0 18px 40px rgba(2,8,23,0.18)',
+        px: { xs: 1.25, sm: 2, lg: 3 },
+        pt: { xs: 1, lg: 1.5 },
+        pb: { xs: 0.75, lg: 1 },
+        backdropFilter: 'none',
+        backgroundColor: 'transparent',
+        borderBottom: 'none',
+        boxShadow: 'none',
       }}
     >
-      <Toolbar sx={{ minHeight: { xs: 72, lg: 84 }, px: { xs: 2, sm: 3, lg: 4 }, py: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2.5} sx={{ width: '100%' }}>
-          <Stack direction="row" spacing={2} alignItems="center">
+      <Paper
+        elevation={0}
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: { xs: '22px', lg: '28px' },
+          border: `1px solid ${panelBorder}`,
+          background: commandBg,
+          boxShadow: isDark
+            ? '0 24px 60px rgba(2,8,23,0.36)'
+            : '0 22px 55px rgba(37,99,235,0.10)',
+          backdropFilter: 'blur(22px)',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background: isDark
+              ? 'radial-gradient(circle at 12% 0%, rgba(59,130,246,0.18), transparent 34%)'
+              : 'radial-gradient(circle at 14% 0%, rgba(37,99,235,0.14), transparent 34%)',
+          },
+        }}
+      >
+        <Toolbar sx={{ position: 'relative', minHeight: { xs: 74, lg: 92 }, px: { xs: 1.5, sm: 2.25, lg: 3 }, py: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ width: '100%', minWidth: 0 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
             <IconButton
               onClick={onOpenSidebar}
               sx={{
                 display: { lg: 'none' },
                 width: 42,
                 height: 42,
-                bgcolor: 'rgba(255,255,255,0.07)',
-                color: 'white',
-                border: '1px solid rgba(148,163,184,0.18)',
+                bgcolor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,23,42,0.04)',
+                color: textPrimary,
+                border: `1px solid ${panelBorder}`,
+                boxShadow: isDark ? 'none' : '0 10px 24px rgba(15,23,42,0.06)',
               }}
             >
               <MenuRoundedIcon />
             </IconButton>
-            <div>
-              <Stack direction="row" alignItems="center" spacing={1.25}>
-                <Typography sx={{ color: '#fbbf24', fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', fontWeight: 800 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.7, flexWrap: 'wrap' }}>
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1.1,
+                    py: 0.45,
+                    borderRadius: '999px',
+                    color: isDark ? '#fde68a' : '#1d4ed8',
+                    bgcolor: isDark ? 'rgba(251,191,36,0.10)' : 'rgba(37,99,235,0.08)',
+                    border: `1px solid ${isDark ? 'rgba(251,191,36,0.18)' : 'rgba(37,99,235,0.14)'}`,
+                    fontSize: 10,
+                    letterSpacing: '0.18em',
+                    textTransform: 'uppercase',
+                    fontWeight: 900,
+                  }}
+                >
                   {meta.eyebrow}
-                </Typography>
-                <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.75, color: '#86efac', fontSize: 12, fontWeight: 700 }}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                  Live
+                </Box>
+                <Box
+                  sx={{
+                    display: { xs: 'none', sm: 'inline-flex' },
+                    alignItems: 'center',
+                    gap: 0.75,
+                    px: 1,
+                    py: 0.45,
+                    borderRadius: '999px',
+                    color: isDark ? '#86efac' : '#047857',
+                    bgcolor: isDark ? 'rgba(34,197,94,0.10)' : 'rgba(209,250,229,0.78)',
+                    border: `1px solid ${isDark ? 'rgba(34,197,94,0.16)' : 'rgba(16,185,129,0.18)'}`,
+                    fontSize: 11,
+                    fontWeight: 800,
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Live APIs
                 </Box>
               </Stack>
-              <Stack direction="row" alignItems="baseline" spacing={1.5} sx={{ mt: 0.55 }}>
-                <Typography variant="h5" sx={{ color: 'white', fontFamily: 'Sora, sans-serif', fontWeight: 700, letterSpacing: 0, fontSize: { xs: 20, lg: 24 } }}>
+              <Stack direction="row" alignItems="baseline" spacing={1.25} sx={{ minWidth: 0 }}>
+                <Typography variant="h5" sx={{ color: textPrimary, fontFamily: 'Sora, sans-serif', fontWeight: 700, letterSpacing: 0, fontSize: { xs: 20, lg: 24 } }}>
                   {meta.title}
                 </Typography>
-                <Typography sx={{ color: alpha('#fff', 0.38), display: { xs: 'none', xl: 'block' }, fontSize: 13 }}>
+                <Typography sx={{ color: alpha(isDark ? '#fff' : '#0f172a', 0.42), display: { xs: 'none', xl: 'block' }, fontSize: 13 }}>
                   Admin Console
                 </Typography>
               </Stack>
-              <Typography variant="body2" sx={{ mt: 0.55, color: alpha('#fff', 0.62), display: { xs: 'none', md: 'block' }, maxWidth: 660 }}>
+              <Typography variant="body2" sx={{ mt: 0.55, color: textMuted, display: { xs: 'none', md: 'block' }, maxWidth: 660 }}>
                 {meta.summary}
               </Typography>
-            </div>
+            </Box>
           </Stack>
 
-          <Stack direction="row" spacing={1.25} alignItems="center">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
             <Paper
               elevation={0}
               sx={{
                 display: { xs: 'none', xl: 'flex' },
                 alignItems: 'center',
                 gap: 1.25,
-                width: 280,
-                px: 1.5,
-                py: 1.1,
-                borderRadius: '16px',
-                color: alpha('#fff', 0.58),
-                border: '1px solid rgba(148,163,184,0.16)',
-                bgcolor: 'rgba(15,23,42,0.58)',
+                width: 330,
+                height: 52,
+                px: 1.6,
+                borderRadius: '18px',
+                color: alpha(isDark ? '#fff' : '#0f172a', 0.58),
+                border: `1px solid ${panelBorder}`,
+                bgcolor: panelBg,
+                boxShadow: isDark ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.9)',
               }}
             >
-              <SearchRoundedIcon sx={{ fontSize: 20, color: alpha('#fff', 0.46) }} />
-              <Typography sx={{ fontSize: 13 }}>Search records...</Typography>
+              <SearchRoundedIcon sx={{ fontSize: 20, color: alpha(isDark ? '#fff' : '#0f172a', 0.46) }} />
+              <Typography sx={{ fontSize: 13, flex: 1 }}>Search records...</Typography>
+              <Box
+                sx={{
+                  px: 0.9,
+                  py: 0.35,
+                  borderRadius: '10px',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(148,163,184,0.22)'}`,
+                  color: alpha(isDark ? '#fff' : '#0f172a', 0.48),
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                Ctrl K
+              </Box>
             </Paper>
 
             <Paper
@@ -191,26 +269,45 @@ function AdminHeader({ onOpenSidebar }) {
                 display: { xs: 'none', lg: 'flex' },
                 alignItems: 'center',
                 gap: 1,
-                px: 1.4,
-                py: 1.05,
+                height: 52,
+                px: 1.3,
                 borderRadius: '16px',
-                color: '#dbeafe',
-                border: '1px solid rgba(59,130,246,0.20)',
-                bgcolor: 'rgba(37,99,235,0.10)',
+                color: isDark ? '#dbeafe' : '#1d4ed8',
+                border: `1px solid ${isDark ? 'rgba(59,130,246,0.20)' : 'rgba(37,99,235,0.18)'}`,
+                bgcolor: isDark ? 'rgba(37,99,235,0.10)' : 'rgba(239,246,255,0.92)',
               }}
             >
-              <ShieldRoundedIcon sx={{ fontSize: 18, color: '#93c5fd' }} />
+              <ShieldRoundedIcon sx={{ fontSize: 18, color: isDark ? '#93c5fd' : '#2563eb' }} />
               <Typography sx={{ fontSize: 13, fontWeight: 700 }}>Secure</Typography>
             </Paper>
+
+            <IconButton
+              aria-label={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
+              onClick={toggleTheme}
+              sx={{
+                width: 44,
+                height: 44,
+                bgcolor: panelBg,
+                color: mode === 'light' ? '#2563eb' : '#fbbf24',
+                border: `1px solid ${panelBorder}`,
+                '&:hover': {
+                  bgcolor: isDark ? 'rgba(30,41,59,0.78)' : 'rgba(239,246,255,0.96)',
+                  transform: 'translateY(-1px)',
+                },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {mode === 'light' ? <DarkModeRoundedIcon /> : <WbSunnyRoundedIcon />}
+            </IconButton>
 
             <IconButton
               sx={{
                 width: 44,
                 height: 44,
-                bgcolor: 'rgba(15,23,42,0.62)',
-                color: 'white',
-                border: '1px solid rgba(148,163,184,0.16)',
-                '&:hover': { bgcolor: 'rgba(30,41,59,0.78)' },
+                bgcolor: panelBg,
+                color: textPrimary,
+                border: `1px solid ${panelBorder}`,
+                '&:hover': { bgcolor: isDark ? 'rgba(30,41,59,0.78)' : 'rgba(239,246,255,0.96)' },
               }}
             >
               <Badge badgeContent={unreadCount} color="error">
@@ -224,11 +321,11 @@ function AdminHeader({ onOpenSidebar }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.25,
+                height: 52,
                 px: 1,
-                py: 0.75,
                 borderRadius: '18px',
-                border: '1px solid rgba(148,163,184,0.16)',
-                bgcolor: 'rgba(15,23,42,0.62)',
+                border: `1px solid ${panelBorder}`,
+                bgcolor: panelBg,
                 minWidth: { sm: 178 },
               }}
             >
@@ -236,14 +333,15 @@ function AdminHeader({ onOpenSidebar }) {
                 A
               </Avatar>
               <div className="hidden sm:block">
-                <Typography sx={{ fontWeight: 800, color: 'white', lineHeight: 1.15, fontSize: 14 }}>{adminProfile.name}</Typography>
-                <Typography variant="body2" sx={{ color: alpha('#fff', 0.56), fontSize: 12 }}>{adminProfile.role}</Typography>
+                <Typography sx={{ fontWeight: 800, color: textPrimary, lineHeight: 1.15, fontSize: 14 }}>{adminProfile.name}</Typography>
+                <Typography variant="body2" sx={{ color: textMuted, fontSize: 12 }}>{adminProfile.role}</Typography>
               </div>
-              <KeyboardArrowDownRoundedIcon sx={{ color: alpha('#fff', 0.52), display: { xs: 'none', sm: 'block' } }} />
+              <KeyboardArrowDownRoundedIcon sx={{ color: alpha(isDark ? '#fff' : '#0f172a', 0.52), display: { xs: 'none', sm: 'block' } }} />
             </Paper>
           </Stack>
         </Stack>
       </Toolbar>
+      </Paper>
     </AppBar>
   );
 }
