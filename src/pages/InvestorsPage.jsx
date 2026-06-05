@@ -153,6 +153,7 @@ function InvestorsPage() {
     {
       key: 'name',
       label: 'Investor',
+      exportValue: (row) => row.name,
       render: (row) => (
         <div>
           <p className="font-semibold text-white">{row.name}</p>
@@ -165,16 +166,19 @@ function InvestorsPage() {
     {
       key: 'investmentAmount',
       label: 'Investment Amount',
+      exportValue: (row) => row.investmentAmount,
       render: (row) => formatCurrency(row.investmentAmount),
     },
     {
       key: 'kyc',
       label: 'KYC',
+      exportValue: (row) => row.kyc,
       render: (row) => <StatusBadge label={row.kyc} />,
     },
     {
       key: 'status',
       label: 'Status',
+      exportValue: (row) => row.status,
       render: (row) => <StatusBadge label={row.status} />,
     },
     { key: 'joinDate', label: 'Join Date' },
@@ -241,6 +245,8 @@ function InvestorsPage() {
         ]}
         emptyMessage={loading ? 'Loading investors...' : 'No investors found.'}
         itemsPerPage={20}
+        enableCsvExport
+        exportFileName="investors-directory"
       />
 
       <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="sm">

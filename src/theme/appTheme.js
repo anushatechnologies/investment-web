@@ -1,34 +1,34 @@
 import { alpha, createTheme } from '@mui/material/styles';
 
-const appTheme = createTheme({
+export const getAppTheme = (mode) => createTheme({
   palette: {
-    mode: 'light',
+    mode,
     primary: {
-      main: '#2563eb',
+      main: mode === 'light' ? '#2563eb' : '#3b82f6',
       light: '#60a5fa',
       dark: '#1d4ed8',
     },
     secondary: {
-      main: '#0f172a',
-      light: '#334155',
-      dark: '#020617',
+      main: mode === 'light' ? '#0f172a' : '#f8fafc',
+      light: mode === 'light' ? '#334155' : '#cbd5e1',
+      dark: mode === 'light' ? '#020617' : '#475569',
     },
     success: {
-      main: '#059669',
+      main: mode === 'light' ? '#059669' : '#10b981',
     },
     warning: {
-      main: '#d97706',
+      main: mode === 'light' ? '#d97706' : '#f59e0b',
     },
     error: {
-      main: '#dc2626',
+      main: mode === 'light' ? '#dc2626' : '#ef4444',
     },
     background: {
-      default: '#f4f7fb',
-      paper: '#ffffff',
+      default: mode === 'light' ? '#f4f7fb' : '#070c17',
+      paper: mode === 'light' ? '#ffffff' : '#0b1329',
     },
     text: {
-      primary: '#0f172a',
-      secondary: '#64748b',
+      primary: mode === 'light' ? '#0f172a' : '#f8fafc',
+      secondary: mode === 'light' ? '#64748b' : '#94a3b8',
     },
   },
   shape: {
@@ -64,11 +64,17 @@ const appTheme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          backgroundImage: `
-            radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.10), transparent 22%),
-            radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.10), transparent 20%),
-            linear-gradient(180deg, #f8fbff 0%, #f3f7fb 50%, #edf3f9 100%)
-          `,
+          backgroundImage: mode === 'light'
+            ? `
+              radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.10), transparent 22%),
+              radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.10), transparent 20%),
+              linear-gradient(180deg, #f8fbff 0%, #f3f7fb 50%, #edf3f9 100%)
+            `
+            : `
+              radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12), transparent 25%),
+              radial-gradient(circle at 85% 80%, rgba(14, 165, 233, 0.10), transparent 22%),
+              linear-gradient(180deg, #070c17 0%, #0c1527 50%, #030712 100%)
+            `,
           backgroundAttachment: 'fixed',
         },
       },
@@ -84,9 +90,11 @@ const appTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 28,
-          border: '1px solid rgba(148, 163, 184, 0.18)',
-          boxShadow: '0 24px 60px rgba(15, 23, 42, 0.08)',
-          backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9))',
+          border: mode === 'light' ? '1px solid rgba(148, 163, 184, 0.18)' : '1px solid rgba(255, 255, 255, 0.06)',
+          boxShadow: mode === 'light' ? '0 24px 60px rgba(15, 23, 42, 0.08)' : '0 24px 60px rgba(0, 0, 0, 0.35)',
+          backgroundImage: mode === 'light'
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.9))'
+            : 'linear-gradient(180deg, rgba(11, 19, 41, 0.95), rgba(11, 19, 41, 0.85))',
           backdropFilter: 'blur(14px)',
         },
       },
@@ -102,7 +110,7 @@ const appTheme = createTheme({
           paddingBlock: 10,
         },
         containedPrimary: {
-          boxShadow: '0 16px 30px rgba(37, 99, 235, 0.22)',
+          boxShadow: mode === 'light' ? '0 16px 30px rgba(37, 99, 235, 0.22)' : '0 16px 30px rgba(59, 130, 246, 0.15)',
         },
       },
     },
@@ -124,7 +132,10 @@ const appTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 18,
-          backgroundColor: alpha('#ffffff', 0.88),
+          backgroundColor: mode === 'light' ? alpha('#ffffff', 0.88) : alpha('#070c17', 0.65),
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: mode === 'light' ? 'rgba(148, 163, 184, 0.24)' : 'rgba(255, 255, 255, 0.08)',
+          },
         },
       },
     },
@@ -132,7 +143,7 @@ const appTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 24,
-          border: '1px solid rgba(148, 163, 184, 0.16)',
+          border: mode === 'light' ? '1px solid rgba(148, 163, 184, 0.16)' : '1px solid rgba(255, 255, 255, 0.06)',
         },
       },
     },
@@ -143,15 +154,14 @@ const appTheme = createTheme({
           fontWeight: 800,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: '#64748b',
-          borderBottomColor: 'rgba(148, 163, 184, 0.18)',
+          color: mode === 'light' ? '#64748b' : '#94a3b8',
+          borderBottomColor: mode === 'light' ? 'rgba(148, 163, 184, 0.18)' : 'rgba(255, 255, 255, 0.08)',
         },
         body: {
-          borderBottomColor: 'rgba(226, 232, 240, 0.9)',
+          borderBottomColor: mode === 'light' ? 'rgba(226, 232, 240, 0.9)' : 'rgba(255, 255, 255, 0.04)',
+          color: mode === 'light' ? '#0f172a' : '#cbd5e1',
         },
       },
     },
   },
 });
-
-export default appTheme;

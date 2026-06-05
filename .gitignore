@@ -16,6 +16,7 @@ jspm_packages/
 # Dist / Build outputs
 dist/
 dist.zip
+dist*.zip
 out/
 
 # dotenv environment variable files

@@ -2,6 +2,7 @@ import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { activateAccount, saveOnboardingStatus } from '../services/api';
+import { resolveInvestorRoute } from '../utils/onboardingRouter';
 
 function AccountActivatePage() {
   const navigate = useNavigate();
@@ -12,9 +13,9 @@ function AccountActivatePage() {
     setLoading(true);
     setError('');
     try {
-      await activateAccount();
-      saveOnboardingStatus({ accountStatus: 'ACTIVE' });
-      navigate('/setup-mpin', { replace: true });
+      const response = await activateAccount();
+      saveOnboardingStatus(response);
+      navigate(resolveInvestorRoute(response), { replace: true });
     } catch (err) {
       setError(err.message || 'Failed to activate account.');
     } finally {

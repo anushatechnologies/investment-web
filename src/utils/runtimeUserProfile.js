@@ -10,6 +10,7 @@ import {
   getSavedBankName,
   getSavedBankAccount,
   getSavedUpiId,
+  getSavedReferralCode,
 } from '../services/api';
 import { getApprovedProfileForCurrentUser, getPendingProfileRequestForCurrentUser } from './profileApprovalStore';
 
@@ -85,6 +86,6 @@ export function getRuntimeUserProfile() {
     bankName: approvedProfile.bankName || getSavedBankName() || '',
     accountNumber: approvedProfile.accountNumber || getSavedBankAccount() || '',
     upiId: approvedProfile.upiId || getSavedUpiId() || '',
-    referralCode: approvedProfile.referralCode || tokenPayload?.referralCode || `${name.split(' ')[0].toUpperCase().replace(/[^A-Z]/g, '')}${(userId || '0000').slice(-4).toUpperCase()}`,
+    referralCode: approvedProfile.referralCode || getSavedReferralCode() || tokenPayload?.referralCode || '',
   };
 }

@@ -1,15 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import appTheme from './theme/appTheme';
+import { ThemeContextProvider } from './theme/ThemeContext';
+import 'bootstrap/dist/css/bootstrap-grid.min.css';
+import 'bootstrap/dist/css/bootstrap-utilities.min.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
+    <ThemeContextProvider>
       <BrowserRouter
         future={{
           v7_startTransition: true,
@@ -18,6 +18,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       >
         <App />
       </BrowserRouter>
-    </ThemeProvider>
+    </ThemeContextProvider>
   </React.StrictMode>,
 );

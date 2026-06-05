@@ -151,6 +151,7 @@ function ReportsPage() {
     {
       key: 'status',
       label: 'Status',
+      exportValue: (row) => row.status,
       render: (row) => <StatusBadge label={row.status} />,
     },
   ];
@@ -296,6 +297,8 @@ function ReportsPage() {
         filterOptions={Array.from(new Set(auditRows.map((row) => row.status))).sort()}
         emptyMessage={loading ? 'Loading audit trail...' : 'No audit events found.'}
         itemsPerPage={20}
+        enableCsvExport
+        exportFileName="audit-trail"
       />
     </div>
   );

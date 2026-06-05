@@ -129,6 +129,7 @@ function PaymentVerificationPage() {
     {
       key: 'investmentAmount',
       label: 'Amount',
+      exportValue: (row) => Number(row.investmentAmount ?? 0),
       render: (row) => formatCurrency(Number(row.investmentAmount ?? 0)),
     },
     {
@@ -139,11 +140,13 @@ function PaymentVerificationPage() {
     {
       key: 'status',
       label: 'Status',
+      exportValue: (row) => row.status || 'PENDING',
       render: (row) => <StatusBadge label={row.status || 'PENDING'} />,
     },
     {
       key: 'receiptApproved',
       label: 'Receipt',
+      exportValue: (row) => (row.receiptApproved ? 'APPROVED' : 'PENDING'),
       render: (row) => <StatusBadge label={row.receiptApproved ? 'APPROVED' : 'PENDING'} />,
     },
     {
@@ -217,6 +220,8 @@ function PaymentVerificationPage() {
         filterKey="status"
         filterOptions={['RECEIPT_UPLOADED', 'REJECTED', 'ACTIVE']}
         loading={loading}
+        enableCsvExport
+        exportFileName="investment-receipt-queue"
       />
       {message && <p className="text-sm text-slate-400">{message}</p>}
 

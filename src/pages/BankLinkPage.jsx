@@ -15,17 +15,19 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { linkBank, saveOnboardingStatus } from '../services/api';
+import { clearOnboardingDraft, getOnboardingDraft } from '../utils/onboardingDraftStore';
 
 function BankLinkPage() {
   const navigate = useNavigate();
+  const draft = getOnboardingDraft();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
-    accountHolderName: '',
-    bankAccountNumber: '',
-    confirmBankAccountNumber: '',
-    bankIfscCode: '',
-    bankName: '',
+    accountHolderName: draft.accountHolderName || draft.fullName || '',
+    bankAccountNumber: draft.bankAccountNumber || '',
+    confirmBankAccountNumber: draft.confirmBankAccountNumber || draft.bankAccountNumber || '',
+    bankIfscCode: draft.bankIfscCode || '',
+    bankName: draft.bankName || '',
   });
 
   const onSubmit = async (event) => {
@@ -39,6 +41,7 @@ function BankLinkPage() {
     try {
       await linkBank(form);
       saveOnboardingStatus({ bankVerified: true });
+      clearOnboardingDraft();
       navigate('/account/activate', { replace: true });
     } catch (err) {
       setError(err.message || 'Failed to link bank account.');
@@ -59,6 +62,9 @@ function BankLinkPage() {
         <Typography color="text.secondary" sx={{ mt: 1.5, maxWidth: 620, lineHeight: 1.8 }}>
           Add your verified payout bank details so withdrawals and account activation can move forward.
         </Typography>
+        <Alert severity="info" sx={{ mt: 3 }}>
+          This step becomes available after KYC approval. The details entered here are now separate from registration and follow the backend onboarding flow.
+        </Alert>
 
         {error && <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>}
 

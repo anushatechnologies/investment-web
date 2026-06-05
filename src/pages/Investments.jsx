@@ -4,7 +4,7 @@ import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { createRazorpayCheckoutOrder, getActivePlans, getOwnInvestments, verifyRazorpayPayment } from '../services/api';
+import { createRazorpayCheckoutOrder, getActiveCoupons, getActivePlans, getOwnInvestments, validateCoupon, verifyRazorpayPayment } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 function toArray(payload) {
@@ -18,7 +18,10 @@ function toArray(payload) {
 function Investments() {
   const [investments, setInvestments] = useState([]);
   const [plans, setPlans] = useState([]);
-  const [investmentForm, setInvestmentForm] = useState({ investmentPlanId: '', investmentAmount: '' });
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [investmentForm, setInvestmentForm] = useState({ investmentPlanId: '', investmentAmount: '', couponCode: '' });
+  const [couponPreview, setCouponPreview] = useState(null);
+  const [couponChecking, setCouponChecking] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -54,11 +57,26 @@ function Investments() {
           setInvestmentForm({
             investmentPlanId: firstPlan.id,
             investmentAmount: String(firstPlan.minimumAmount || ''),
+            couponCode: '',
           });
         }
       })
       .catch(() => {
         if (active) setPlans([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getActiveCoupons()
+      .then((response) => {
+        if (active) setActiveCoupons(toArray(response));
+      })
+      .catch(() => {
+        if (active) setActiveCoupons([]);
       });
     return () => {
       active = false;
@@ -89,7 +107,9 @@ function Investments() {
     setInvestmentForm({
       investmentPlanId: planId,
       investmentAmount: String(plan?.minimumAmount || ''),
+      couponCode: investmentForm.couponCode,
     });
+    setCouponPreview(null);
     setPaymentError('');
     setPaymentMessage('');
   };
@@ -98,9 +118,49 @@ function Investments() {
     setInvestmentForm({
       investmentPlanId: plan.id,
       investmentAmount: String(plan.minimumAmount || ''),
+      couponCode: investmentForm.couponCode,
     });
+    setCouponPreview(null);
     setPaymentError('');
     setPaymentMessage('');
+  };
+
+  const handleCouponChange = (event) => {
+    setInvestmentForm((current) => ({ ...current, couponCode: event.target.value.toUpperCase() }));
+    setCouponPreview(null);
+    setPaymentError('');
+    setPaymentMessage('');
+  };
+
+  const checkCoupon = async () => {
+    const couponCode = investmentForm.couponCode.trim().toUpperCase();
+    const amount = Number(investmentForm.investmentAmount);
+    if (!couponCode) {
+      setCouponPreview(null);
+      return;
+    }
+    if (!investmentForm.investmentPlanId || !amount || amount <= 0) {
+      setPaymentError('Select a plan and enter amount before applying coupon.');
+      return;
+    }
+    setCouponChecking(true);
+    setPaymentError('');
+    try {
+      const preview = await validateCoupon({
+        investmentPlanId: investmentForm.investmentPlanId,
+        investmentAmount: amount,
+        couponCode,
+      });
+      setCouponPreview(preview);
+      if (!preview?.valid) {
+        setPaymentError(preview?.message || 'Coupon is not valid for this investment.');
+      }
+    } catch (error) {
+      setCouponPreview(null);
+      setPaymentError(error.message || 'Unable to validate coupon.');
+    } finally {
+      setCouponChecking(false);
+    }
   };
 
   const handleRazorpayInvest = async (event) => {
@@ -128,6 +188,7 @@ function Investments() {
       const response = await createRazorpayCheckoutOrder({
         investmentPlanId: investmentForm.investmentPlanId,
         investmentAmount: amount,
+        couponCode: investmentForm.couponCode.trim().toUpperCase() || null,
       });
       const checkout = response.checkout || response.data?.checkout || {};
       const investment = response.investment || response.data?.investment || {};
@@ -160,7 +221,10 @@ function Investments() {
               razorpayPaymentId: paymentResponse.razorpay_payment_id,
               razorpaySignature: paymentResponse.razorpay_signature,
             });
-            setPaymentMessage('Payment successful. Your investment is activated.');
+            const cashback = Number(checkout.couponCashbackAmount || investment.couponCashbackAmount || 0);
+            setPaymentMessage(cashback > 0
+              ? `Payment successful. Investment activated and coupon cashback ${formatCurrency(cashback)} will appear in wallet.`
+              : 'Payment successful. Your investment is activated.');
             await loadInvestments();
           } catch (error) {
             setPaymentError(error.message || 'Payment completed, but verification failed.');
@@ -195,9 +259,13 @@ function Investments() {
         plan: item.planName || item.plan || item.investmentPlanName || '-',
         amount: Number(item.investmentAmount ?? item.amount ?? 0),
         startDate: item.startDate || item.createdAt || '-',
+        nextInterestDueDate: item.nextInterestDueDate || '-',
+        lastInterestCreditedAt: item.lastInterestCreditedAt || '-',
         maturityDate: item.maturityDate || '-',
         monthlyReturn: item.monthlyReturn || item.monthlyInterestRate || '-',
         status: item.status || 'Unknown',
+        coupon: item.appliedCouponCode || '-',
+        couponCashback: Number(item.couponCashbackAmount || 0),
       })),
     [investments],
   );
@@ -205,11 +273,14 @@ function Investments() {
   const stats = useMemo(() => {
     const totalInvestment = normalizedInvestments.reduce((sum, item) => sum + (item.amount || 0), 0);
     const activePlans = normalizedInvestments.filter((item) => item.status?.toLowerCase() === 'active').length;
+    const nextInterestDate = normalizedInvestments
+      .filter((item) => item.nextInterestDueDate && item.nextInterestDueDate !== '-')
+      .sort((a, b) => new Date(a.nextInterestDueDate) - new Date(b.nextInterestDueDate))[0]?.nextInterestDueDate || '-';
     const nearestMaturity = normalizedInvestments.find((item) => item.maturityDate && item.maturityDate !== '-')?.maturityDate || '-';
     return [
       { title: 'Total Investment', value: totalInvestment, icon: BriefcaseBusiness, tone: 'blue', valueType: 'currency', note: 'across all plans' },
       { title: 'Active Plans', value: activePlans, icon: ShieldCheck, tone: 'emerald', note: 'currently earning' },
-      { title: 'Monthly Return', value: '-', icon: TrendingUp, tone: 'violet', note: 'interest per month' },
+      { title: 'Next Interest', value: nextInterestDate, icon: TrendingUp, tone: 'violet', note: 'upcoming monthly credit' },
       { title: 'Next Maturity', value: nearestMaturity, icon: CalendarClock, tone: 'amber', note: 'nearest maturity date' },
     ];
   }, [normalizedInvestments]);
@@ -223,8 +294,14 @@ function Investments() {
       render: (row) => formatCurrency(row.amount),
     },
     { key: 'startDate', label: 'Start Date' },
+    { key: 'nextInterestDueDate', label: 'Next Interest Due' },
     { key: 'maturityDate', label: 'Maturity Date' },
     { key: 'monthlyReturn', label: 'Monthly Return' },
+    {
+      key: 'coupon',
+      label: 'Coupon',
+      render: (row) => (row.couponCashback > 0 ? `${row.coupon} (${formatCurrency(row.couponCashback)})` : row.coupon),
+    },
     {
       key: 'status',
       label: 'Status',
@@ -329,6 +406,46 @@ function Investments() {
               />
             </label>
 
+            <label className="mt-4 block">
+              <span className="text-sm font-semibold text-slate-700">Coupon Code</span>
+              <div className="mt-2 flex gap-2">
+                <input
+                  className="input-shell"
+                  value={investmentForm.couponCode}
+                  onChange={handleCouponChange}
+                  onBlur={checkCoupon}
+                  placeholder="Optional cashback code"
+                />
+                <button type="button" onClick={checkCoupon} disabled={couponChecking} className="btn-secondary shrink-0 disabled:opacity-60">
+                  {couponChecking ? 'Checking...' : 'Apply'}
+                </button>
+              </div>
+            </label>
+
+            {couponPreview?.valid && Number(couponPreview.cashbackAmount || 0) > 0 && (
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                Coupon applied. Cashback: {formatCurrency(Number(couponPreview.cashbackAmount || 0))}
+              </div>
+            )}
+
+            {activeCoupons.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeCoupons.slice(0, 4).map((coupon) => (
+                  <button
+                    key={coupon.id || coupon.code}
+                    type="button"
+                    onClick={() => {
+                      setInvestmentForm((current) => ({ ...current, couponCode: coupon.code || '' }));
+                      setCouponPreview(null);
+                    }}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    {coupon.code}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {selectedPlan && (
               <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
                 <p>Allowed amount: {formatCurrency(selectedPlan.minimumAmount)} to {formatCurrency(selectedPlan.maximumAmount)}</p>
@@ -348,6 +465,39 @@ function Investments() {
           <StatCard key={stat.title} {...stat} />
         ))}
       </div>
+
+      <SectionCard title="Monthly Interest Calendar" subtitle="Upcoming wallet credit dates for active investments.">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {normalizedInvestments
+            .filter((item) => item.status?.toLowerCase() === 'active')
+            .map((item) => (
+              <div key={item.id} className="rounded-[22px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-heading text-lg font-semibold text-slate-950">{item.plan}</p>
+                    <p className="mt-1 text-sm text-slate-500">{formatCurrency(item.amount)}</p>
+                  </div>
+                  <StatusBadge label={item.status} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-500">Next due</p>
+                    <p className="mt-1 font-semibold text-slate-900">{item.nextInterestDueDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Last credited</p>
+                    <p className="mt-1 font-semibold text-slate-900">{item.lastInterestCreditedAt}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          {normalizedInvestments.filter((item) => item.status?.toLowerCase() === 'active').length === 0 && (
+            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+              No active investments are scheduled yet.
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
       <DataTable
         title="Investment List"
