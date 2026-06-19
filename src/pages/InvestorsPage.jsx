@@ -156,8 +156,8 @@ function InvestorsPage() {
       exportValue: (row) => row.name,
       render: (row) => (
         <div>
-          <p className="font-semibold text-white">{row.name}</p>
-          <p className="text-xs text-slate-500">{row.city}</p>
+          <p className="font-semibold text-slate-900 dark:text-white">{row.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{row.city}</p>
         </div>
       ),
     },
@@ -189,7 +189,7 @@ function InvestorsPage() {
         <button
           type="button"
           onClick={() => handleEditClick(row)}
-          className="text-slate-400 transition hover:text-blue-500"
+          className="text-slate-500 dark:text-slate-300 transition hover:text-blue-500"
         >
           <Pencil className="h-4 w-4" />
         </button>

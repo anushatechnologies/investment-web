@@ -1,4 +1,4 @@
-import { ArrowRightLeft, CheckCircle2, Clock3, Network, PlayCircle, Search, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, CheckCircle2, Clock3, Network, PlayCircle, Search, TrendingUp, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
@@ -202,24 +202,27 @@ function ReferralStatisticsPage() {
     return (
       <div className="mt-5 space-y-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Investor</p>
-            <p className="mt-2 font-semibold text-white">{result.investorName || result.investorUserId}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Investment</p>
-            <p className="mt-2 font-semibold text-white">{formatCurrency(Number(result.investmentAmount || 0))}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Investor Monthly Interest</p>
-            <p className="mt-2 font-semibold text-white">{formatCurrency(Number(result.investorMonthlyInterest || 0))}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Referral Total</p>
-            <p className="mt-2 font-semibold text-gold-soft">
-              {formatCurrency(Number(result.instantCashbackTotal || 0) + Number(result.monthlyIncomeTotal || 0))}
-            </p>
-          </div>
+          {[
+            { label: 'Investor', value: result.investorName || result.investorUserId, color: 'blue' },
+            { label: 'Investment', value: formatCurrency(Number(result.investmentAmount || 0)), color: 'slate' },
+            { label: 'Monthly Interest', value: formatCurrency(Number(result.investorMonthlyInterest || 0)), color: 'emerald' },
+            { label: 'Referral Total', value: formatCurrency(Number(result.instantCashbackTotal || 0) + Number(result.monthlyIncomeTotal || 0)), color: 'amber' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className={`rounded-2xl border p-4 ${
+              color === 'amber'   ? 'border-amber-500/20 bg-amber-500/[0.05] dark:bg-amber-500/[0.07]' :
+              color === 'emerald' ? 'border-emerald-500/20 bg-emerald-500/[0.05] dark:bg-emerald-500/[0.07]' :
+              color === 'blue'    ? 'border-blue-500/20 bg-blue-500/[0.05] dark:bg-blue-500/[0.07]' :
+                                    'border-slate-200/60 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.03]'
+            }`}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</p>
+              <p className={`mt-2 text-sm font-bold ${
+                color === 'amber' ? 'text-amber-600 dark:text-amber-400' :
+                color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                'text-slate-800 dark:text-slate-100'
+              }`}>{value}</p>
+            </div>
+          ))}
         </div>
 
         <DataTable
@@ -233,7 +236,7 @@ function ReferralStatisticsPage() {
             { key: 'sourceAmount', label: 'Source Amount', render: (row) => (
               <div>
                 <p className="font-semibold">{formatCurrency(Number(row.sourceAmount || 0))}</p>
-                <p className="text-xs text-slate-500">{row.sourceLabel}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-300">{row.sourceLabel}</p>
               </div>
             ) },
             { key: 'rate', label: 'Rate', render: (row) => `${row.rate || 0}%` },
@@ -250,19 +253,24 @@ function ReferralStatisticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-soft">
+      <div className="relative overflow-hidden rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-amber-500/[0.08] dark:via-[#071226] dark:to-orange-500/[0.04] p-6 shadow-lg shadow-amber-500/5">
+        <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-amber-400/10 blur-2xl -translate-y-6 translate-x-6" />
+        <div className="absolute bottom-0 left-0 h-24 w-24 rounded-full bg-orange-400/10 blur-xl translate-y-4 -translate-x-4" />
+        <p className="relative text-xs font-bold uppercase tracking-[0.28em] text-amber-600 dark:text-amber-400">
           Referral operations
         </p>
-        <h1 className="section-title mt-3">Referral Statistics</h1>
-        <p className="section-copy mt-3 max-w-3xl">
+        <h1 className="relative section-title mt-2">Referral Statistics</h1>
+        <p className="relative section-copy mt-2 max-w-3xl">
           Monitor investor referral relationships, level-wise payouts, and commission activity.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/[0.08] px-5 py-4 shadow-lg shadow-rose-500/5">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-rose-500/20 mt-0.5">
+            <AlertTriangle className="h-4 w-4 text-rose-500" />
+          </div>
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-300 mt-1">{error}</p>
         </div>
       )}
 
@@ -272,56 +280,85 @@ function ReferralStatisticsPage() {
         ))}
       </div>
 
-      <SectionCard title="Referral Confirmation Flow" subtitle="How admin settings are applied when an investment is activated and when interest is credited.">
-        <div className="grid gap-3 lg:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm font-semibold text-white">1. Signup Link</p>
-            <p className="mt-2 text-xs leading-6 text-slate-400">Referral chain is created when a user signs up with a valid referral code. Maximum payable depth is five uplines.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm font-semibold text-white">2. Investment Activation</p>
-            <p className="mt-2 text-xs leading-6 text-slate-400">Instant cashback is calculated from the investment amount using level-wise instant rates.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm font-semibold text-white">3. Monthly Interest</p>
-            <p className="mt-2 text-xs leading-6 text-slate-400">Investor interest comes from the selected plan. Monthly referral income is calculated from that credited interest.</p>
-          </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#071226] shadow-sm">
+        <div className="border-b border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.02] px-5 py-4">
+          <h2 className="text-base font-bold text-slate-800 dark:text-white">Referral Confirmation Flow</h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">How admin settings are applied when an investment is activated and when interest is credited.</p>
         </div>
-      </SectionCard>
+        <div className="grid gap-0 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 dark:divide-white/[0.06]">
+          {[
+            { step: '01', title: 'Signup Link', color: 'blue', icon: '🔗', desc: 'Referral chain is created when a user signs up with a valid referral code. Maximum payable depth is five uplines.' },
+            { step: '02', title: 'Investment Activation', color: 'amber', icon: '⚡', desc: 'Instant cashback is calculated from the investment amount using level-wise instant rates.' },
+            { step: '03', title: 'Monthly Interest', color: 'emerald', icon: '📈', desc: 'Investor interest comes from the selected plan. Monthly referral income is calculated from that credited interest.' },
+          ].map(({ step, title, color, icon, desc }) => (
+            <div key={step} className={`relative overflow-hidden p-6 ${
+              color === 'blue'    ? 'bg-blue-50/80 dark:bg-blue-500/[0.05]' :
+              color === 'amber'   ? 'bg-amber-50/80 dark:bg-amber-500/[0.05]' :
+                                    'bg-emerald-50/80 dark:bg-emerald-500/[0.05]'
+            }`}>
+              <span className={`text-7xl font-black opacity-[0.07] absolute -bottom-2 -right-1 leading-none select-none ${
+                color === 'blue' ? 'text-blue-600' : color === 'amber' ? 'text-amber-600' : 'text-emerald-600'
+              }`}>{step}</span>
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl text-lg font-bold border ${
+                  color === 'blue'    ? 'bg-blue-100 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30' :
+                  color === 'amber'   ? 'bg-amber-100 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30' :
+                                        'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30'
+                }`}>{icon}</span>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${
+                  color === 'blue' ? 'text-blue-600 dark:text-blue-400' : color === 'amber' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                }`}>Step {step}</p>
+              </div>
+              <p className="text-sm font-bold text-slate-800 dark:text-white mb-2">{title}</p>
+              <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <SectionCard title="Level Payout Rules" subtitle="Admin-configured instant cashback and monthly interest-share rates at each upline level.">
-        <div className="grid gap-3 md:grid-cols-5">
-          {levelRows.map((row) => (
-            <div key={row.id} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-sm font-semibold text-white">{row.level}</p>
-              <div className="mt-3 space-y-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Instant</p>
-                  <p className="mt-1 text-xl font-semibold text-gold-soft">{row.instantRate}</p>
-                  <p className="mt-1 text-xs text-slate-300">{formatCurrency(row.instantCashbackAmount)}</p>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#071226] shadow-sm">
+        <div className="border-b border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.02] px-5 py-4">
+          <h2 className="text-base font-bold text-slate-800 dark:text-white">Level Payout Rules</h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Admin-configured instant cashback and monthly interest-share rates at each upline level.</p>
+        </div>
+        <div className="grid gap-0 divide-y md:divide-y-0 md:grid-cols-5 md:divide-x divide-slate-200 dark:divide-white/[0.06]">
+          {levelRows.map((row, idx) => (
+            <div key={row.id} className="group relative flex flex-col p-5 hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors duration-200">
+              {/* Gradient top strip */}
+              <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${
+                idx === 0 ? 'from-blue-400 to-indigo-500' :
+                idx === 1 ? 'from-indigo-400 to-purple-500' :
+                idx === 2 ? 'from-purple-400 to-amber-500' :
+                idx === 3 ? 'from-amber-400 to-orange-500' :
+                            'from-orange-400 to-rose-500'
+              }`} />
+              <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{row.level}</p>
+              <p className="mt-2 text-2xl font-black text-slate-800 dark:text-white">{row.relationships}<span className="text-xs font-medium text-slate-400 ml-1">links</span></p>
+              <div className="mt-4 space-y-3 flex-1">
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-500/[0.08] border border-amber-200 dark:border-amber-500/20 p-2.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">Instant</p>
+                  <p className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{row.instantRate}</p>
+                  <p className="text-[10px] text-amber-500/70 dark:text-amber-500/50 mt-0.5">{formatCurrency(row.instantCashbackAmount)}</p>
                 </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Monthly</p>
-                  <p className="mt-1 text-xl font-semibold text-emerald-300">{row.monthlyRate}</p>
-                  <p className="mt-1 text-xs text-slate-300">{formatCurrency(row.monthlyIncomeAmount)}</p>
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/[0.08] border border-emerald-200 dark:border-emerald-500/20 p-2.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500">Monthly</p>
+                  <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{row.monthlyRate}</p>
+                  <p className="text-[10px] text-emerald-500/70 dark:text-emerald-500/50 mt-0.5">{formatCurrency(row.monthlyIncomeAmount)}</p>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-slate-400">{row.relationships} links</p>
-              <p className="mt-1 text-xs text-slate-300">Total {formatCurrency(row.commissionAmount)}</p>
+              <p className="mt-3 pt-3 border-t border-slate-200 dark:border-white/[0.06] text-[10px] font-bold text-slate-500 dark:text-slate-400">Total {formatCurrency(row.commissionAmount)}</p>
             </div>
           ))}
           {!loading && levelRows.length === 0 && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400 md:col-span-5">
-              No level data found.
-            </div>
+            <div className="p-8 text-sm text-slate-400 dark:text-slate-500 md:col-span-5 text-center">No level data found.</div>
           )}
         </div>
-      </SectionCard>
+      </div>
 
       <SectionCard title="Referral Payout Preview" subtitle="Check exact instant cashback, monthly direct-referrer income, and held rows before release.">
         <form onSubmit={runPreview} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Investment ID</span>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Investment ID</span>
             <input
               className="input-shell mt-2"
               value={previewInvestmentId}
@@ -340,7 +377,7 @@ function ReferralStatisticsPage() {
       <SectionCard title="Admin Referral Simulator" subtitle="Model A -> B -> C payout before activating an investment.">
         <form onSubmit={runSimulator} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px_auto]">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Investor</span>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Investor</span>
             <select
               className="input-shell mt-2"
               value={simulatorForm.investorUserId}
@@ -354,7 +391,7 @@ function ReferralStatisticsPage() {
             </select>
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Plan</span>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Plan</span>
             <select
               className="input-shell mt-2"
               value={simulatorForm.investmentPlanId}
@@ -367,7 +404,7 @@ function ReferralStatisticsPage() {
             </select>
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Amount</span>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Amount</span>
             <input
               type="number"
               min="1"
@@ -436,7 +473,7 @@ function ReferralStatisticsPage() {
           { key: 'sourceAmount', label: 'Source Amount', render: (row) => (
             <div>
               <p className="font-semibold">{formatCurrency(row.sourceAmount)}</p>
-              <p className="text-xs text-slate-500">{row.sourceAmountLabel}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-300">{row.sourceAmountLabel}</p>
             </div>
           ) },
           { key: 'commissionAmount', label: 'Commission', render: (row) => formatCurrency(row.commissionAmount) },
@@ -448,7 +485,7 @@ function ReferralStatisticsPage() {
                 type="button"
                 onClick={() => releaseCommission(row.id)}
                 disabled={releasingId === row.id}
-                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all duration-200 disabled:opacity-50"
               >
                 {releasingId === row.id ? 'Releasing...' : 'Release'}
               </button>

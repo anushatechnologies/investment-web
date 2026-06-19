@@ -24,34 +24,22 @@ function Layout({ onLogout }) {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: (theme) =>
-          theme.palette.mode === 'light'
-            ? 'radial-gradient(circle at top left, rgba(37,99,235,0.06), transparent 24%), linear-gradient(180deg, #f8fafc 0%, #f3f7fb 50%, #eef3f9 100%)'
-            : 'radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 25%), linear-gradient(180deg, #070c17 0%, #0c1527 50%, #030712 100%)',
-      }}
-    >
+    <div className="min-h-screen flex flex-col relative">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
       />
 
-      <Box sx={{ minHeight: '100vh', pl: { lg: '290px' } }}>
+      <div className="flex-1 flex flex-col min-h-screen lg:pl-[320px] transition-[padding] duration-300">
         <Header onOpenSidebar={() => setSidebarOpen(true)} />
-        <Box
-          component="main"
-          sx={{
-            px: { xs: 1.25, sm: 2.5, lg: 4 },
-            pt: { xs: 2, sm: 3, lg: 4 },
-            pb: { xs: 'calc(88px + env(safe-area-inset-bottom, 0px))', lg: 4 },
-          }}
+        <main
+          key={location.pathname}
+          className="animate-fade-in-up flex-1 w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-[calc(88px+env(safe-area-inset-bottom,0px))] lg:pb-8"
         >
           <Outlet />
-        </Box>
-      </Box>
+        </main>
+      </div>
       <MobileInvestorNav />
 
       {/* Mobile-only floating theme toggle FAB */}
@@ -85,7 +73,7 @@ function Layout({ onLogout }) {
       >
         {mode === 'light' ? <WbSunnyRoundedIcon sx={{ fontSize: 18 }} /> : <DarkModeRoundedIcon sx={{ fontSize: 18 }} />}
       </Fab>
-    </Box>
+    </div>
   );
 }
 

@@ -99,7 +99,7 @@ function User360Page() {
             ['Onboarding', profile.onboardingStatus],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">{label}</p>
               <p className="mt-2 font-semibold text-white">{value || '-'}</p>
             </div>
           ))}
@@ -114,7 +114,7 @@ function User360Page() {
         )}
         <form onSubmit={submitAdjustment} className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_auto]">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Amount</span>
+            <span className="text-sm font-semibold text-slate-500 dark:text-slate-300">Amount</span>
             <input
               type="number"
               step="0.01"
@@ -125,7 +125,7 @@ function User360Page() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-300">Reason</span>
+            <span className="text-sm font-semibold text-slate-500 dark:text-slate-300">Reason</span>
             <input
               className="input-shell mt-2"
               value={adjustment.reason}

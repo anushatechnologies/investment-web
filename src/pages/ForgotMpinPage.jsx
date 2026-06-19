@@ -17,11 +17,7 @@ function renderPinSlots(value) {
     return (
       <div
         key={index}
-        className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-xl font-semibold transition-all md:h-16 md:w-14 ${
-          digit
-            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-[0_10px_24px_-18px_rgba(37,99,235,0.8)]'
-            : 'border-slate-200 bg-slate-50 text-slate-300'
-        }`}
+        className={`flex h-14 w-12 items-center justify-center rounded-2xl border text-xl font-semibold transition-all md:h-16 md:w-14 ${ digit ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-[0_10px_24px_-18px_rgba(37,99,235,0.8)]' : 'border-slate-200 bg-slate-50 text-slate-500 dark:text-slate-300' }`}
       >
         {digit || '0'}
       </div>
@@ -193,7 +189,7 @@ function ForgotMpinPage() {
           <div className="relative text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-xl shadow-blue-950/20">{current.icon}</div>
             <h2 className="mt-6 font-heading text-[2rem] font-bold tracking-tight">{current.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">{current.subtitle}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-300">{current.subtitle}</p>
           </div>
         </div>
 
@@ -203,27 +199,27 @@ function ForgotMpinPage() {
           {step === STEPS.MOBILE && (
             <form onSubmit={handleSendOtp} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Mobile Number</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Mobile Number</label>
                 <div className="flex gap-2">
-                  <div className="input-shell flex w-16 items-center justify-center bg-slate-50 font-medium text-slate-500">+91</div>
+                  <div className="input-shell flex w-16 items-center justify-center bg-slate-50 font-medium text-slate-500 dark:text-slate-300">+91</div>
                   <input type="tel" required maxLength={10} value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} className="input-shell flex-1" placeholder="Enter 10-digit number" autoFocus />
                 </div>
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Send OTP</span><ArrowRight className="h-4 w-4" /></>}
               </button>
-              <div className="text-center text-sm text-slate-600"><Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">Back to login</Link></div>
+              <div className="text-center text-sm text-slate-600 dark:text-slate-300"><Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">Back to login</Link></div>
             </form>
           )}
 
           {step === STEPS.OTP && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">6-Digit OTP</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">6-Digit OTP</label>
                 <input type="text" required maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-xl tracking-[0.5em]" placeholder="* * * * * *" autoFocus />
               </div>
               <div className="text-center">
-                {otpTimer > 0 ? <span className="text-sm text-slate-400">Resend OTP in {otpTimer}s</span> : <button type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50">Resend OTP</button>}
+                {otpTimer > 0 ? <span className="text-sm text-slate-500 dark:text-slate-300">Resend OTP in {otpTimer}s</span> : <button type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50">Resend OTP</button>}
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Verify OTP</span><ArrowRight className="h-4 w-4" /></>}
@@ -239,8 +235,8 @@ function ForgotMpinPage() {
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">Secure MPIN Reset</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">Secure MPIN Reset</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                       Enter a fresh 4-digit MPIN and confirm it below. Typing now uses real inputs, so focus and entry should work normally.
                     </p>
                   </div>
@@ -248,7 +244,7 @@ function ForgotMpinPage() {
 
                 <div className="space-y-5">
                   <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <label className="mb-3 block text-center text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                    <label className="mb-3 block text-center text-xs font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">
                       New 4-Digit MPIN
                     </label>
                     <div className="flex justify-center gap-2.5">{renderPinSlots(mpin)}</div>
@@ -260,12 +256,12 @@ function ForgotMpinPage() {
                       onChange={(e) => setMpinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       autoFocus
                       placeholder="Enter 4 digits"
-                      className="mt-4 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-center text-lg font-semibold tracking-[0.32em] text-slate-900 outline-none transition placeholder:tracking-normal placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                      className="mt-4 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-center text-lg font-semibold tracking-[0.32em] text-slate-900 outline-none transition placeholder:tracking-normal placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:text-white"
                     />
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <label className="mb-3 block text-center text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                    <label className="mb-3 block text-center text-xs font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">
                       Confirm New MPIN
                     </label>
                     <div className="flex justify-center gap-2.5">{renderPinSlots(mpinConfirm)}</div>
@@ -276,7 +272,7 @@ function ForgotMpinPage() {
                       value={mpinConfirm}
                       onChange={(e) => setMpinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       placeholder="Re-enter 4 digits"
-                      className="mt-4 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-center text-lg font-semibold tracking-[0.32em] text-slate-900 outline-none transition placeholder:tracking-normal placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                      className="mt-4 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-center text-lg font-semibold tracking-[0.32em] text-slate-900 outline-none transition placeholder:tracking-normal placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:text-white"
                     />
                   </div>
                 </div>
@@ -295,8 +291,8 @@ function ForgotMpinPage() {
           {step === STEPS.SUCCESS && (
             <div className="text-center">
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><CheckCircle2 className="h-10 w-10" /></div>
-              <h3 className="font-heading text-xl font-bold text-slate-900">MPIN Reset Complete</h3>
-              <p className="mt-2 text-sm text-slate-500">Use your new MPIN for secure actions.</p>
+              <h3 className="font-heading text-xl font-bold text-slate-900 dark:text-white">MPIN Reset Complete</h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">Use your new MPIN for secure actions.</p>
               <div className="pt-6">
                 <button type="button" onClick={() => navigate('/login', { replace: true })} className="btn-primary w-full">
                   <span>Go to Login</span>

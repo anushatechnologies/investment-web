@@ -20,25 +20,11 @@ import {
   ClipboardList,
   Landmark,
   Target,
+  Sparkles,
+  Zap
 } from 'lucide-react';
-import DashboardCustomizeRoundedIcon from '@mui/icons-material/DashboardCustomizeRounded';
-import {
-  Avatar,
-  Box,
-  Button,
-  CircularProgress,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Stack,
-  Typography,
-} from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { Drawer } from '@mui/material';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { BRAND_LOGO_FALLBACK, BRAND_LOGO_PRIMARY } from '../constants/branding';
 import { getRuntimeUserProfile } from '../utils/runtimeUserProfile';
 import { getStoredOnboardingStatus, getInvestorDashboard, getReferralCommissions } from '../services/api';
@@ -51,392 +37,133 @@ function normalizeStatus(value) {
 }
 
 const navigationItems = [
-  { label: 'User Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'KYC Documents', path: '/kyc', icon: UserCheck },
-  { label: 'My Investments', path: '/investments', icon: BriefcaseBusiness },
-  { label: 'Wallet', path: '/wallet', icon: Wallet },
-  { label: 'Referral Network', path: '/referral-network', icon: Share2 },
-  { label: 'Withdraw', path: '/withdraw', icon: Wallet },
-  { label: 'Payment Receipts', path: '/payment-receipts', icon: Receipt },
-  { label: 'Statements', path: '/statements', icon: FileText },
-  { label: 'Notifications', path: '/notifications', icon: Bell },
-  { label: 'Investment Status', path: '/investment-status', icon: Shield },
-  { label: 'Security Center', path: '/security', icon: Shield },
-  { label: 'Plan Watchlist', path: '/watchlist', icon: Target },
-  { label: 'Tax Center', path: '/tax-center', icon: Landmark },
-  { label: 'Nominees', path: '/nominees', icon: ClipboardList },
-  { label: 'Support', path: '/support', icon: LifeBuoy },
-  { label: 'Profile', path: '/profile', icon: User },
-  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard, color: 'from-blue-400 to-indigo-500' },
+  { label: 'Investments', path: '/investments', icon: BriefcaseBusiness, color: 'from-emerald-400 to-teal-500' },
+  { label: 'Wallet', path: '/wallet', icon: Wallet, color: 'from-purple-400 to-fuchsia-500' },
+  { label: 'Referrals', path: '/referral-network', icon: Share2, color: 'from-pink-400 to-rose-500' },
+  { label: 'Withdraw', path: '/withdraw', icon: Landmark, color: 'from-amber-400 to-orange-500' },
+  { label: 'Receipts', path: '/payment-receipts', icon: Receipt, color: 'from-cyan-400 to-blue-500' },
+  { label: 'Statements', path: '/statements', icon: FileText, color: 'from-indigo-400 to-purple-500' },
+  { label: 'KYC Center', path: '/kyc', icon: UserCheck, color: 'from-teal-400 to-emerald-500' },
+  { label: 'Notifications', path: '/notifications', icon: Bell, color: 'from-orange-400 to-red-500' },
+  { label: 'Status', path: '/investment-status', icon: Shield, color: 'from-blue-400 to-indigo-500' },
+  { label: 'Security', path: '/security', icon: KeyRound, color: 'from-rose-400 to-pink-500' },
+  { label: 'Watchlist', path: '/watchlist', icon: Target, color: 'from-fuchsia-400 to-purple-500' },
+  { label: 'Tax', path: '/tax-center', icon: FileText, color: 'from-emerald-400 to-cyan-500' },
+  { label: 'Nominees', path: '/nominees', icon: ClipboardList, color: 'from-amber-400 to-yellow-500' },
+  { label: 'Support', path: '/support', icon: LifeBuoy, color: 'from-indigo-400 to-blue-500' },
+  { label: 'Settings', path: '/settings', icon: Settings, color: 'from-slate-400 to-slate-500' },
 ];
 
-function OnboardingStatusCard({ onboardingStatus, onClose }) {
+function RichWalletCard({ availableBalance, pendingBalance, referralIncome }) {
+  return (
+    <div className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-5 mb-6 shadow-2xl shadow-indigo-900/20 group">
+      {/* Animated glowing orbs inside card */}
+      <div className="absolute -right-8 -top-8 w-24 h-24 bg-blue-500/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+      <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-fuchsia-500/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+      
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="p-1.5 bg-white/10 backdrop-blur-md rounded-lg">
+            <Wallet className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-xs font-black uppercase tracking-widest text-indigo-200">Total Wealth</span>
+        </div>
+        
+        <h3 className="text-3xl font-black text-white tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] mb-4">
+          {formatCurrency(availableBalance)}
+        </h3>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-xl p-2.5">
+            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300 block mb-1">Pending</span>
+            <span className="text-sm font-black text-white">{formatCurrency(pendingBalance)}</span>
+          </div>
+          <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-xl p-2.5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300 block mb-1 relative z-10">Earnings</span>
+            <span className="text-sm font-black text-white relative z-10">{formatCurrency(referralIncome)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RichOnboardingCard({ onboardingStatus, onClose }) {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   const kycState = onboardingStatus?.kycStatus || 'NOT_SUBMITTED';
   const bankState = onboardingStatus?.bankVerified;
   const accountState = onboardingStatus?.accountStatus || 'PENDING';
   const mpinState = onboardingStatus?.mpinCreated;
   const normalizedKyc = normalizeStatus(kycState);
-  const kycActionable = normalizedKyc === 'REUPLOAD_REQUIRED' || normalizedKyc === 'REJECTED';
 
   const steps = useMemo(() => [
-    {
-      id: 'kyc',
-      label: 'KYC Document',
-      status: normalizedKyc === 'APPROVED' ? 'complete' : 'active',
-      subtitle: normalizedKyc === 'APPROVED' ? 'Verified & Approved' : normalizedKyc === 'PENDING' ? 'In Review' : kycActionable ? 'Reupload Requested' : 'Action Required',
-      icon: UserCheck,
-      path: '/kyc',
-      color: normalizedKyc === 'APPROVED' ? '#10b981' : normalizedKyc === 'PENDING' ? '#f59e0b' : kycActionable ? '#ef4444' : (isDark ? '#60a5fa' : '#2563eb'),
-    },
-    {
-      id: 'bank',
-      label: 'Bank Verification',
-      status: bankState ? 'complete' : normalizedKyc === 'APPROVED' ? 'active' : 'idle',
-      subtitle: bankState ? 'Linked & Verified' : 'Enter Details',
-      icon: Building,
-      path: '/bank/link',
-      color: bankState ? '#10b981' : (isDark ? '#60a5fa' : '#2563eb'),
-    },
-    {
-      id: 'account',
-      label: 'Activation',
-      status: accountState === 'ACTIVE' ? 'complete' : bankState ? 'active' : 'idle',
-      subtitle: accountState === 'ACTIVE' ? 'Activated' : 'Awaiting Review',
-      icon: CheckCircle2,
-      path: '/profile',
-      color: accountState === 'ACTIVE' ? '#10b981' : '#f59e0b',
-    },
-    {
-      id: 'mpin',
-      label: 'Security PIN',
-      status: mpinState ? 'complete' : accountState === 'ACTIVE' ? 'active' : 'idle',
-      subtitle: mpinState ? 'Configured' : 'Setup 4-Digit PIN',
-      icon: KeyRound,
-      path: '/setup-mpin',
-      color: mpinState ? '#10b981' : (isDark ? '#60a5fa' : '#2563eb'),
-    },
-  ], [normalizedKyc, kycActionable, bankState, accountState, mpinState, isDark]);
+    { id: 'kyc', label: 'KYC Document', status: normalizedKyc === 'APPROVED' ? 'complete' : 'active', path: '/kyc', icon: UserCheck },
+    { id: 'bank', label: 'Bank Detail', status: bankState ? 'complete' : normalizedKyc === 'APPROVED' ? 'active' : 'idle', path: '/bank/link', icon: Building },
+    { id: 'account', label: 'Activation', status: accountState === 'ACTIVE' ? 'complete' : bankState ? 'active' : 'idle', path: '/profile', icon: Zap },
+    { id: 'mpin', label: 'Secure PIN', status: mpinState ? 'complete' : accountState === 'ACTIVE' ? 'active' : 'idle', path: '/setup-mpin', icon: KeyRound },
+  ], [normalizedKyc, bankState, accountState, mpinState]);
 
   const completedCount = steps.filter((s) => s.status === 'complete').length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
   const isAllComplete = completedCount === steps.length;
 
+  if (isAllComplete) return null;
+
   return (
-    <Box
-      sx={{
-        borderRadius: '20px',
-        p: 2,
-        mb: 2,
-        background: isAllComplete
-          ? (isDark
-              ? 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(11,27,57,0.4) 100%)'
-              : 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(240,253,250,0.5) 100%)')
-          : (isDark
-              ? 'linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(11,27,57,0.4) 100%)'
-              : 'linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(240,246,255,0.5) 100%)'),
-        border: '1px solid',
-        borderColor: isAllComplete
-          ? (isDark ? 'rgba(16,185,129,0.18)' : 'rgba(16,185,129,0.25)')
-          : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(37,99,235,0.08)'),
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Background glow decorator */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: -20,
-          right: -20,
-          width: 70,
-          height: 70,
-          borderRadius: '50%',
-          bgcolor: isAllComplete ? '#10b981' : '#3b82f6',
-          filter: 'blur(35px)',
-          opacity: 0.15,
-          pointerEvents: 'none',
-        }}
-      />
-
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 24,
-              height: 24,
-              borderRadius: '6px',
-              bgcolor: isAllComplete ? 'rgba(16,185,129,0.16)' : 'rgba(37,99,235,0.16)',
-            }}
-          >
-            <Shield size={12} style={{ color: isAllComplete ? '#34d399' : '#60a5fa' }} />
-          </Box>
-          <Typography sx={{ fontWeight: 800, fontSize: 11, color: isDark ? 'rgba(255,255,255,0.85)' : '#475569', letterSpacing: '0.06em' }}>
-            ONBOARDING STATUS
-          </Typography>
-        </Stack>
-        <Typography
-          sx={{
-            fontSize: '11px',
-            fontWeight: 800,
-            color: isAllComplete ? '#34d399' : '#60a5fa',
-            bgcolor: isAllComplete ? 'rgba(16,185,129,0.12)' : 'rgba(37,99,235,0.12)',
-            px: 1,
-            py: 0.25,
-            borderRadius: '6px',
-          }}
+    <div className="rounded-[1.5rem] bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-4 mb-6 shadow-xl relative overflow-hidden">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Setup</h4>
+            <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400">{progressPercent}% Done</p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Animated Glowing Progress Bar */}
+      <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full mb-4 overflow-hidden relative shadow-inner">
+        <div 
+          className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative" 
+          style={{ width: `${progressPercent}%` }} 
         >
-          {progressPercent}%
-        </Typography>
-      </Stack>
+          <div className="absolute top-0 right-0 bottom-0 left-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)] bg-[length:1rem_1rem] animate-[progress_1s_linear_infinite]" />
+        </div>
+      </div>
 
-      {/* Modern High-End Step Progress Line */}
-      <Box sx={{ position: 'relative', height: 4, bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)', borderRadius: '2px', mb: 2 }}>
-        <Box
-          sx={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: `${progressPercent}%`,
-            bgcolor: isAllComplete ? '#10b981' : '#3b82f6',
-            borderRadius: '2px',
-            boxShadow: isAllComplete ? '0 0 10px rgba(16,185,129,0.5)' : '0 0 10px rgba(37,99,235,0.5)',
-            transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        />
-      </Box>
-
-      {/* Grid of steps */}
-      <Stack spacing={1}>
+      <div className="grid grid-cols-2 gap-2">
         {steps.map((step) => {
           const StepIcon = step.icon;
           const isDone = step.status === 'complete';
           const isActive = step.status === 'active';
 
           return (
-            <Box
+            <button
               key={step.id}
-              onClick={() => {
-                if (step.status !== 'idle') {
-                  onClose();
-                  navigate(step.path);
-                }
-              }}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                p: 1,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: isActive ? 'rgba(59,130,246,0.3)' : 'transparent',
-                bgcolor: isActive
-                  ? (isDark ? 'rgba(59,130,246,0.06)' : 'rgba(59,130,246,0.04)')
-                  : isDone
-                  ? (isDark ? 'rgba(16,185,129,0.02)' : 'rgba(16,185,129,0.01)')
-                  : 'transparent',
-                cursor: step.status !== 'idle' ? 'pointer' : 'default',
-                transition: 'all 0.2s ease',
-                '&:hover': step.status !== 'idle' ? {
-                  bgcolor: isActive 
-                    ? (isDark ? 'rgba(59,130,246,0.09)' : 'rgba(59,130,246,0.06)') 
-                    : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.03)'),
-                  borderColor: isActive ? 'rgba(59,130,246,0.5)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'),
-                  transform: 'translateX(2px)',
-                } : {},
-                opacity: step.status === 'idle' ? 0.45 : 1,
-              }}
+              onClick={() => { if (step.status !== 'idle') { onClose(); navigate(step.path); } }}
+              disabled={step.status === 'idle'}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${ isDone ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' : isActive ? 'bg-white dark:bg-slate-800 border-indigo-400 dark:border-indigo-500 shadow-md shadow-indigo-500/10 scale-105 relative z-10' : 'bg-slate-50 dark:bg-slate-900/50 border-transparent opacity-50 grayscale' }`}
             >
-              <Stack direction="row" alignItems="center" spacing={1.25}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 28,
-                    height: 28,
-                    borderRadius: '8px',
-                    bgcolor: isDone ? 'rgba(16,185,129,0.12)' : isActive ? 'rgba(59,130,246,0.15)' : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)'),
-                    color: isDone ? '#10b981' : isActive ? '#60a5fa' : (isDark ? '#94a3b8' : '#64748b'),
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <StepIcon size={14} />
-                </Box>
-                <div>
-                  <Typography sx={{ fontSize: '11.5px', fontWeight: 700, color: isDone ? (isDark ? 'rgba(255,255,255,0.95)' : '#0f172a') : (isDark ? 'rgba(255,255,255,0.7)' : '#475569') }}>
-                    {step.label}
-                  </Typography>
-                  <Typography sx={{ fontSize: '9px', fontWeight: 600, color: step.color }}>
-                    {step.subtitle}
-                  </Typography>
-                </div>
-              </Stack>
-
-              {step.status !== 'idle' && (
-                <ChevronRight size={12} style={{ color: isDone ? '#10b981' : '#60a5fa', opacity: 0.7 }} />
-              )}
-            </Box>
+              <StepIcon className={`w-5 h-5 mb-1.5 ${isDone ? 'text-emerald-500' : isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-wider text-center ${isDone ? 'text-emerald-700 dark:text-emerald-400' : isActive ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-500'}`}>
+                {step.label}
+              </span>
+            </button>
           );
         })}
-      </Stack>
-    </Box>
-  );
-}
-
-function InvestorHubCard({ loading, availableBalance, pendingBalance, lockedBalance, referralIncome }) {
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
-  const [activeTab, setActiveTab] = useState(0); // 0 = Wealth, 1 = Referrals
-
-  const walletMetrics = [
-    { label: 'Available', value: availableBalance, color: '#10b981' },
-    { label: 'Pending', value: pendingBalance, color: '#f59e0b' },
-    { label: 'Locked', value: lockedBalance, color: '#3b82f6' },
-  ];
-
-  return (
-    <Box
-      sx={{
-        borderRadius: '20px',
-        p: 2,
-        mb: 2,
-        background: isDark
-          ? 'linear-gradient(135deg, rgba(37,99,235,0.22), rgba(14,165,233,0.08))'
-          : 'linear-gradient(135deg, rgba(37,99,235,0.06), rgba(14,165,233,0.03))',
-        border: '1px solid',
-        borderColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(37,99,235,0.08)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
-      {/* Sliding Segment Tabs */}
-      <Box
-        sx={{
-          display: 'flex',
-          p: 0.5,
-          borderRadius: '12px',
-          bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
-          mb: 2,
-        }}
-      >
-        <Button
-          fullWidth
-          size="small"
-          onClick={() => setActiveTab(0)}
-          sx={{
-            py: 0.5,
-            borderRadius: '9px',
-            fontSize: '11px',
-            fontWeight: 800,
-            textTransform: 'none',
-            color: activeTab === 0
-              ? (isDark ? 'white' : '#1e3a8a')
-              : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.5)'),
-            bgcolor: activeTab === 0
-              ? (isDark ? 'rgba(255,255,255,0.08)' : 'white')
-              : 'transparent',
-            boxShadow: activeTab === 0 && !isDark ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-            '&:hover': {
-              bgcolor: activeTab === 0 
-                ? (isDark ? 'rgba(255,255,255,0.12)' : 'white')
-                : (isDark ? 'rgba(15,23,42,0.02)' : 'rgba(15,23,42,0.02)'),
-            }
-          }}
-        >
-          My Wealth
-        </Button>
-        <Button
-          fullWidth
-          size="small"
-          onClick={() => setActiveTab(1)}
-          sx={{
-            py: 0.5,
-            borderRadius: '9px',
-            fontSize: '11px',
-            fontWeight: 800,
-            textTransform: 'none',
-            color: activeTab === 1
-              ? (isDark ? 'white' : '#1e3a8a')
-              : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(15,23,42,0.5)'),
-            bgcolor: activeTab === 1
-              ? (isDark ? 'rgba(255,255,255,0.08)' : 'white')
-              : 'transparent',
-            boxShadow: activeTab === 1 && !isDark ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-            '&:hover': {
-              bgcolor: activeTab === 1 
-                ? (isDark ? 'rgba(255,255,255,0.12)' : 'white')
-                : (isDark ? 'rgba(15,23,42,0.02)' : 'rgba(15,23,42,0.02)'),
-            }
-          }}
-        >
-          Referrals
-        </Button>
-      </Box>
-
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-          <CircularProgress size={18} sx={{ color: isDark ? 'rgba(255,255,255,0.5)' : 'primary.main' }} />
-        </Box>
-      ) : activeTab === 0 ? (
-        /* Wealth Tab */
-        <Box>
-          <Typography sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: isDark ? 'rgba(255,255,255,0.45)' : '#64748b', mb: 1.2, textTransform: 'uppercase' }}>
-            Cash Breakdown
-          </Typography>
-          <Stack spacing={1}>
-            {walletMetrics.map((m) => (
-              <Stack key={m.label} direction="row" alignItems="center" justifyContent="space-between">
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: m.color, flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: 11, color: isDark ? 'rgba(255,255,255,0.65)' : '#475569', fontWeight: 600 }}>{m.label}</Typography>
-                </Stack>
-                <Typography sx={{ fontSize: 12, fontWeight: 800, color: isDark ? 'white' : '#0f172a' }}>{formatCurrency(m.value)}</Typography>
-              </Stack>
-            ))}
-          </Stack>
-        </Box>
-      ) : (
-        /* Referrals Tab */
-        <Box>
-          <Typography sx={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: isDark ? 'rgba(255,255,255,0.45)' : '#64748b', mb: 1.2, textTransform: 'uppercase' }}>
-            Referral Earnings
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              px: 1.5,
-              py: 1.25,
-              borderRadius: '12px',
-              bgcolor: isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.06)',
-              border: '1px solid',
-              borderColor: isDark ? 'rgba(16,185,129,0.18)' : 'rgba(16,185,129,0.22)',
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <TrendingUp size={12} style={{ color: '#10b981' }} />
-              <Typography sx={{ fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.85)' : '#065f46' }}>Commission</Typography>
-            </Stack>
-            <Typography sx={{ fontSize: 13, fontWeight: 900, color: '#10b981' }}>
-              {formatCurrency(referralIncome)}
-            </Typography>
-          </Box>
-        </Box>
-      )}
-    </Box>
+      </div>
+    </div>
   );
 }
 
 function SidebarContent({ onLogout, onClose }) {
   const userProfile = getRuntimeUserProfile();
+  const location = useLocation();
   const onboardingStatus = getStoredOnboardingStatus() || {};
   const isComplete = isOnboardingComplete(onboardingStatus);
   const visibleNavItems = isComplete
@@ -451,210 +178,150 @@ function SidebarContent({ onLogout, onClose }) {
       '/support',
     ].includes(item.path));
 
-  const [loading, setLoading] = useState(true);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [pendingBalance, setPendingBalance] = useState(0);
-  const [lockedBalance, setLockedBalance] = useState(0);
   const [referralIncome, setReferralIncome] = useState(0);
-
-  const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    Promise.all([getInvestorDashboard(), getReferralCommissions()])
-      .then(([dashboardRes, commissionsRes]) => {
-        if (!active) return;
-        const d = dashboardRes?.data || dashboardRes || {};
-        setAvailableBalance(Number(d.wallet?.availableBalance ?? d.availableBalance ?? d.walletBalance ?? 0));
-        setPendingBalance(Number(d.wallet?.pendingBalance ?? d.pendingBalance ?? 0));
-        setLockedBalance(Number(d.wallet?.lockedBalance ?? d.lockedBalance ?? 0));
-        const commissions = Array.isArray(commissionsRes) ? commissionsRes
-          : Array.isArray(commissionsRes?.data) ? commissionsRes.data
-          : Array.isArray(commissionsRes?.commissions) ? commissionsRes.commissions
-          : [];
-        const totalReferral = commissions.reduce((sum, c) => sum + Number(c.commissionAmount ?? c.amount ?? 0), 0);
-        setReferralIncome(totalReferral);
-      })
-      .catch(() => {})
-      .finally(() => { if (active) setLoading(false); });
+    Promise.all([getInvestorDashboard(), getReferralCommissions()]).then(([dashboardRes, commissionsRes]) => {
+      if (!active) return;
+      const d = dashboardRes?.data || dashboardRes || {};
+      setAvailableBalance(Number(d.wallet?.availableBalance ?? d.availableBalance ?? d.walletBalance ?? 0));
+      setPendingBalance(Number(d.wallet?.pendingBalance ?? d.pendingBalance ?? 0));
+      const commissions = Array.isArray(commissionsRes) ? commissionsRes : Array.isArray(commissionsRes?.data) ? commissionsRes.data : Array.isArray(commissionsRes?.commissions) ? commissionsRes.commissions : [];
+      setReferralIncome(commissions.reduce((sum, c) => sum + Number(c.commissionAmount ?? c.amount ?? 0), 0));
+    });
     return () => { active = false; };
   }, []);
 
   return (
-    <Box
-      sx={{
-        height: '100%',
-        minHeight: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        px: { xs: 2, sm: 2.25 },
-        py: 2,
-        background: isDark
-          ? 'linear-gradient(180deg, #07172d 0%, #0b1d39 55%, #0a1930 100%)'
-          : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #f1f5f9 100%)',
-        color: isDark ? 'white' : '#0f172a',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Mobile drag handle */}
-      <Box
-        sx={{
-          display: { xs: 'flex', lg: 'none' },
-          justifyContent: 'center',
-          mb: 1.5,
-        }}
-      >
-        <Box
-          sx={{
-            width: 36,
-            height: 4,
-            borderRadius: 99,
-            bgcolor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.18)',
-          }}
-        />
-      </Box>
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-[#060B19] border-r border-slate-200/60 dark:border-white/5 overflow-y-auto relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* Huge animated glowing background blobs */}
+      <div className="absolute top-[-10%] left-[-20%] w-[150%] h-[500px] bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
+      
+      <div className="p-5 flex-1 relative z-10 flex flex-col">
+        
+        {/* Ultra-Premium Logo */}
+        <Link to="/" onClick={onClose} className="flex items-center gap-4 mb-8 outline-none group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-500 rounded-[18px] blur-md opacity-40 group-hover:opacity-70 group-hover:scale-110 transition-all duration-500" />
+            <div className="relative bg-white dark:bg-slate-900 p-1.5 rounded-[18px] border-2 border-white dark:border-slate-700 shadow-xl">
+              <img
+                src={BRAND_LOGO_PRIMARY}
+                alt="Logo"
+                onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
+                className="w-10 h-10 object-contain rounded-xl"
+              />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">
+              Anusha <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">Trade</span>
+            </h1>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-200 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block">
+              Premium Portal
+            </p>
+          </div>
+        </Link>
 
-      <Link to="/" onClick={onClose} className="mb-4 flex items-center gap-3 transition hover:opacity-80">
-        <Avatar
-          variant="rounded"
-          src={BRAND_LOGO_PRIMARY}
-          alt="Anusha Trade"
-          imgProps={{ onError: (e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; } }}
-          sx={{ width: 48, height: 48, bgcolor: 'white', borderRadius: '14px', p: 0.5 }}
-        />
-        <div>
-          <Typography variant="h6" sx={{ color: isDark ? 'white' : '#0f172a', fontWeight: 700, fontSize: 16 }}>Anusha Trade</Typography>
-          <Typography variant="body2" sx={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#475569', fontSize: 12 }}>Investor Portal</Typography>
-        </div>
-      </Link>
+        {/* User Profile Bento */}
+        <Link to="/profile" onClick={onClose} className="rounded-[1.5rem] bg-white dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-3 flex items-center gap-4 shadow-lg hover:shadow-xl hover:-translate-y-1 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all duration-300 group mb-6 outline-none">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+            <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-white font-black text-lg relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent" />
+              {userProfile.avatar}
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">{userProfile.name}</h3>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-200 uppercase tracking-widest truncate">{userProfile.membership}</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 transition-colors mr-1" />
+        </Link>
 
-      {/* User Profile Chip */}
-      <Box
-        sx={{
-          borderRadius: '18px',
-          p: { xs: 1.5, sm: 2 },
-          mb: 2,
-          background: isDark
-            ? 'linear-gradient(135deg, rgba(37,99,235,0.32), rgba(14,165,233,0.12))'
-            : 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(14,165,233,0.04))',
-          border: '1px solid',
-          borderColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(37,99,235,0.08)',
-        }}
-      >
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Avatar sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(37,99,235,0.12)', color: isDark ? 'white' : '#2563eb', width: 40, height: 40, fontWeight: 800, fontSize: 15 }}>
-            {userProfile.avatar}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 14, color: isDark ? 'white' : '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userProfile.name}</Typography>
-            <Typography variant="body2" sx={{ color: isDark ? alpha('#fff', 0.72) : '#475569', fontSize: 12 }}>{userProfile.membership}</Typography>
-          </Box>
-          <IconButton
-            size="small"
-            onClick={onLogout}
-            sx={{
-              color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(15,23,42,0.55)',
-              '&:hover': {
-                color: '#ef4444',
-                bgcolor: isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.06)',
-              },
-              flexShrink: 0,
-            }}
-          >
-            <LogOut size={16} />
-          </IconButton>
-        </Stack>
-      </Box>
+        {/* Vibrant Dashboard Widgets */}
+        <RichWalletCard availableBalance={availableBalance} pendingBalance={pendingBalance} referralIncome={referralIncome} />
+        <RichOnboardingCard onboardingStatus={onboardingStatus} onClose={onClose} />
 
-      {/* Sidebar Content Scroll Area */}
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5, pb: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-        {/* ── Live Wealth & Referral Hub Card ── */}
-        <InvestorHubCard
-          loading={loading}
-          availableBalance={availableBalance}
-          pendingBalance={pendingBalance}
-          lockedBalance={lockedBalance}
-          referralIncome={referralIncome}
-        />
-
-        {/* ── Breathtaking 10/10 Onboarding & KYC Stepper ── */}
-        <OnboardingStatusCard onboardingStatus={onboardingStatus} onClose={onClose} />
-
-        <List sx={{ px: 0 }}>
-          {visibleNavItems.map(({ icon: Icon, label, path }) => (
-            <NavLink key={path} to={path} end={path === '/'} onClick={onClose} style={{ textDecoration: 'none' }}>
-              {({ isActive }) => (
-                <ListItemButton
-                  sx={{
-                    borderRadius: '14px',
-                    mb: 0.5,
-                    py: 1,
-                    color: isActive ? 'white' : (isDark ? alpha('#fff', 0.72) : 'rgba(15,23,42,0.72)'),
-                    bgcolor: isActive ? 'rgba(37,99,235,0.92)' : 'transparent',
-                    boxShadow: isActive ? '0 12px 24px rgba(37,99,235,0.24)' : 'none',
-                    '&:hover': {
-                      bgcolor: isActive ? 'rgba(37,99,235,0.92)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)'),
-                    },
-                  }}
+        {/* Vibrant Navigation Menu */}
+        <div className="flex-1">
+          <h4 className="text-[11px] font-black tracking-[0.2em] text-slate-500 dark:text-slate-200 uppercase px-3 mb-3">Main Menu</h4>
+          <nav className="space-y-1 px-1">
+            {visibleNavItems.map(({ icon: Icon, label, path, color }) => {
+              const isActive = location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={onClose}
+                  className={`flex items-center gap-4 px-3 py-1.5 rounded-2xl transition-all duration-300 outline-none group relative overflow-hidden ${ isActive ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 shadow-lg shadow-indigo-500/10' : 'border border-transparent hover:bg-white dark:hover:bg-slate-800/50 hover:border-slate-200 dark:hover:border-white/5 hover:shadow-md' }`}
                 >
-                  <ListItemIcon sx={{ minWidth: 34, color: 'inherit' }}>
-                    <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={label}
-                    primaryTypographyProps={{ fontSize: 13, fontWeight: isActive ? 700 : 600 }}
-                  />
-                </ListItemButton>
-              )}
-            </NavLink>
-          ))}
-        </List>
-      </Box>
+                  {/* Vibrant Icon Box */}
+                  <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center transition-all duration-300 relative z-10 ${
+                    isActive 
+                      ? `bg-gradient-to-br ${color} text-white shadow-lg` 
+                      : 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                  }`}>
+                    {isActive && <div className="absolute inset-0 bg-white/20 rounded-[14px]" />}
+                    <Icon className="w-5 h-5 relative z-10" strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                  
+                  <span className={`text-[13px] font-black tracking-tight relative z-10 ${ isActive ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white' }`}>
+                    {label}
+                  </span>
 
-      <Divider sx={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)', my: 1.5 }} />
-    </Box>
+                  {/* Active Indicator Line */}
+                  {isActive && (
+                    <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-l-full bg-gradient-to-b ${color}`} />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+      </div>
+
+      {/* Premium Logout Footer */}
+      <div className="p-5 mt-auto relative z-10">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-2xl bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-black text-sm tracking-widest uppercase hover:bg-rose-500 hover:text-white hover:border-rose-500 dark:hover:bg-rose-600 dark:hover:text-white dark:hover:border-rose-600 hover:shadow-lg hover:shadow-rose-500/20 transition-all duration-300 group outline-none"
+        >
+          <LogOut className="w-5 h-5 shrink-0 group-hover:scale-110 group-hover:-translate-x-1 transition-transform duration-300" strokeWidth={2.5} />
+          <span>Secure Logout</span>
+        </button>
+      </div>
+
+    </div>
   );
 }
 
 function Sidebar({ isOpen, onClose, onLogout }) {
   return (
     <>
-      {/* Mobile: right-anchored drawer */}
       <Drawer
         open={isOpen}
         onClose={onClose}
-        anchor="right"
+        anchor="left"
         variant="temporary"
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', lg: 'none' },
-          '& .MuiDrawer-paper': {
-            width: { xs: 290, sm: 310 },
-            height: '100dvh',
-            border: 'none',
-            background: 'transparent',
-          },
+          '& .MuiDrawer-paper': { width: 320, border: 'none', background: 'transparent' },
+          '& .MuiBackdrop-root': { backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.6)' }
         }}
       >
         <SidebarContent onLogout={onLogout} onClose={onClose} />
       </Drawer>
 
-      {/* Desktop: left-fixed sidebar */}
-      <Box
-        sx={{
-          display: { xs: 'none', lg: 'block' },
-          position: 'fixed',
-          insetY: 0,
-          left: 0,
-          width: 290,
-          height: '100dvh',
-          zIndex: 1200,
-        }}
-      >
+      <div className="hidden lg:block fixed top-0 left-0 bottom-0 w-[320px] z-40">
         <SidebarContent onLogout={onLogout} onClose={onClose} />
-      </Box>
+      </div>
     </>
   );
 }

@@ -33,22 +33,21 @@ function MobileInvestorNav() {
         elevation={0}
         sx={{
           pointerEvents: 'auto',
-          borderRadius: '24px',
+          borderRadius: '16px',
           border: '1px solid',
           borderColor: (theme) =>
             theme.palette.mode === 'light'
-              ? 'rgba(226,232,240,0.95)'
-              : 'rgba(255,255,255,0.07)',
+              ? '#e2e8f0'
+              : '#334155',
           overflow: 'hidden',
           bgcolor: (theme) =>
             theme.palette.mode === 'light'
-              ? 'rgba(255,255,255,0.95)'
-              : 'rgba(11, 19, 41, 0.95)',
-          backdropFilter: 'blur(20px)',
+              ? '#ffffff'
+              : '#0f172a',
           boxShadow: (theme) =>
             theme.palette.mode === 'light'
-              ? '0 -4px 24px rgba(15,23,42,0.08), 0 2px 8px rgba(15,23,42,0.04)'
-              : '0 -4px 24px rgba(0,0,0,0.35)',
+              ? '0 -4px 12px rgba(0,0,0,0.05)'
+              : 'none',
         }}
       >
         <Box
@@ -124,7 +123,7 @@ function MobileInvestorNav() {
                     lineHeight: 1,
                     color: isActive ? 'primary.main' : 'text.secondary',
                     whiteSpace: 'nowrap',
-                    fontFamily: '"Manrope", sans-serif',
+                    fontFamily: 'Inter, sans-serif',
                   }}
                 >
                   {label}

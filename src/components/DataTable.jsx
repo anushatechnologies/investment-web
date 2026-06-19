@@ -74,7 +74,7 @@ function DataTable({
       );
 
     const matchesFilter =
-      !filterKey || selectedFilter === 'All' || String(row[filterKey]) === selectedFilter;
+      !filterKey || selectedFilter === 'All' || String(row[filterKey]).toLowerCase() === selectedFilter.toLowerCase();
 
     return matchesSearch && matchesFilter;
   });
@@ -184,12 +184,28 @@ function DataTable({
           }}
           fullWidth
           placeholder={searchPlaceholder}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '24px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(248, 250, 252, 0.6)' : 'rgba(15, 23, 42, 0.4)',
+              '&:hover': {
+                backgroundColor: (theme) => theme.palette.mode === 'light' ? '#ffffff' : '#1e293b',
+              },
+              '&.Mui-focused': {
+                backgroundColor: (theme) => theme.palette.mode === 'light' ? '#ffffff' : '#0f172a',
+                boxShadow: (theme) => theme.palette.mode === 'light' ? '0 8px 24px -4px rgba(15,23,42,0.08)' : '0 8px 24px -4px rgba(0,0,0,0.4)',
+              }
+            }
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+            },
           }}
         />
       </Box>
@@ -233,7 +249,7 @@ function DataTable({
                   <Typography
                     variant="caption"
                     sx={{
-                      color: 'text.secondary',
+                      color: (theme) => theme.palette.mode === 'light' ? '#475569' : '#cbd5e1',
                       fontWeight: 700,
                       fontSize: 10,
                       letterSpacing: '0.08em',
@@ -261,7 +277,12 @@ function DataTable({
             </Box>
           ))
         ) : (
-          <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary', fontSize: 14 }}>{emptyMessage}</Box>
+          <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
+            <Box sx={{ mb: 2, display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: (theme) => theme.palette.mode === 'light' ? '#f1f5f9' : '#1e293b' }}>
+              <SearchIcon sx={{ fontSize: 32, opacity: 0.5 }} />
+            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 14 }}>{emptyMessage}</Typography>
+          </Box>
         )}
       </Box>
 
@@ -270,7 +291,7 @@ function DataTable({
           <TableHead>
             <TableRow>
               {columns.map((column) => (
-                <TableCell key={column.key} className="table-header-cell" sx={{ color: 'text.secondary' }}>
+                <TableCell key={column.key} className="table-header-cell">
                   {column.label}
                 </TableCell>
               ))}
@@ -283,6 +304,10 @@ function DataTable({
                   key={row.id ?? row.name}
                   hover
                   sx={{
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(99, 102, 241, 0.04) !important' : 'rgba(99, 102, 241, 0.1) !important',
+                    },
                     '&:last-child td': { borderBottom: 'none' },
                   }}
                 >
@@ -295,8 +320,11 @@ function DataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} align="center" sx={{ py: 8, color: 'text.secondary' }}>
-                  {emptyMessage}
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 10, color: 'text.secondary' }}>
+                  <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: (theme) => theme.palette.mode === 'light' ? '#f1f5f9' : '#1e293b', mb: 2 }}>
+                    <SearchIcon sx={{ fontSize: 32, opacity: 0.5 }} />
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 14 }}>{emptyMessage}</Typography>
                 </TableCell>
               </TableRow>
             )}

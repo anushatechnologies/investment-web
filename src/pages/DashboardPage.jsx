@@ -1,6 +1,7 @@
 import { AlertTriangle, BriefcaseBusiness, ShieldCheck, Users, Wallet } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, CircularProgress, Stack, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Area,
   AreaChart,
@@ -27,6 +28,8 @@ import { formatCompactCurrency, formatCurrency, formatNumber, formatShortTick } 
 const investmentPalette = ['#2563eb', '#14b8a6', '#f59e0b', '#7c3aed', '#e11d48', '#64748b'];
 
 function DashboardPage() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [dashboard, setDashboard] = useState(null);
   const [monthlyReport, setMonthlyReport] = useState(null);
   const [investments, setInvestments] = useState([]);
@@ -233,14 +236,21 @@ function DashboardPage() {
                 <AreaChart data={monthlyInvestmentData}>
                   <defs>
                     <linearGradient id="dashboardInvestments" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.48} />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                      <stop offset="0%" stopColor={isDark ? '#818cf8' : '#4f46e5'} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={isDark ? '#818cf8' : '#4f46e5'} stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                  <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
+                  <CartesianGrid stroke={isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(148, 163, 184, 0.12)'} vertical={false} />
+                  <XAxis 
+                    dataKey="label" 
+                    stroke={isDark ? '#94a3b8' : '#64748b'} 
+                    tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}
+                    tickLine={false} 
+                    axisLine={false} 
+                  />
                   <YAxis
-                    stroke="#64748b"
+                    stroke={isDark ? '#94a3b8' : '#64748b'}
+                    tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={formatShortTick}
@@ -248,15 +258,23 @@ function DashboardPage() {
                   <Tooltip
                     formatter={(value) => [formatCurrency(value), 'Applied amount']}
                     contentStyle={{
-                      background: 'rgba(7, 17, 38, 0.95)',
-                      border: '1px solid rgba(148, 163, 184, 0.18)',
-                      borderRadius: '18px',
+                      background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(148, 163, 184, 0.18)'}`,
+                      borderRadius: '16px',
+                      boxShadow: isDark ? '0 12px 30px rgba(0,0,0,0.3)' : '0 12px 30px rgba(37,99,235,0.06)',
+                    }}
+                    itemStyle={{
+                      color: isDark ? '#f8fafc' : '#0f172a',
+                    }}
+                    labelStyle={{
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      fontWeight: 600,
                     }}
                   />
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#3b82f6"
+                    stroke={isDark ? '#818cf8' : '#4f46e5'}
                     strokeWidth={3}
                     fill="url(#dashboardInvestments)"
                   />
@@ -288,18 +306,22 @@ function DashboardPage() {
                   <Tooltip
                     formatter={(value, name) => [formatNumber(value), name]}
                     contentStyle={{
-                      background: 'rgba(7, 17, 38, 0.95)',
-                      border: '1px solid rgba(148, 163, 184, 0.18)',
-                      borderRadius: '18px',
+                      background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(148, 163, 184, 0.18)'}`,
+                      borderRadius: '16px',
+                      boxShadow: isDark ? '0 12px 30px rgba(0,0,0,0.3)' : '0 12px 30px rgba(37,99,235,0.06)',
+                    }}
+                    itemStyle={{
+                      color: isDark ? '#f8fafc' : '#0f172a',
                     }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-heading text-4xl font-semibold text-white">
+                <span className="font-heading text-4xl font-semibold text-slate-900 dark:text-white">
                   {formatNumber(totalInvestmentRecords)}
                 </span>
-                <span className="text-sm text-slate-400">Total records</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">Total records</span>
               </div>
             </div>
 
@@ -307,13 +329,13 @@ function DashboardPage() {
               {investmentStatusData.length > 0 ? investmentStatusData.map((item) => (
                 <div
                   key={item.name}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  className="flex items-center justify-between rounded-2xl border border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                    <span className="text-sm font-medium text-slate-200">{item.name}</span>
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.name}</span>
                   </div>
-                  <span className="text-sm text-slate-400">{formatNumber(item.value)}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">{formatNumber(item.value)}</span>
                 </div>
               )) : (
                 <Typography variant="body2" color="text.secondary">
@@ -337,17 +359,17 @@ function DashboardPage() {
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {operationalCards.map((card) => (
-            <div key={card.title} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-              <p className="text-sm text-slate-400">{card.title}</p>
-              <p className="mt-3 font-heading text-2xl font-semibold text-white">
+            <div key={card.title} className="rounded-2xl border border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] p-5 hover:translate-y-[-2px] transition-all duration-200">
+              <p className="text-sm text-slate-500 dark:text-slate-400">{card.title}</p>
+              <p className="mt-3 font-heading text-2xl font-semibold text-slate-900 dark:text-white">
                 {card.currency ? formatCompactCurrency(card.value) : formatNumber(card.value)}
               </p>
-              <p className="mt-2 text-sm text-slate-400">{card.note}</p>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{card.note}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-5 rounded-3xl border border-blue-500/20 bg-blue-500/10 p-5 text-sm leading-7 text-blue-100">
+        <div className="mt-5 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10 p-5 text-sm leading-7 text-blue-700 dark:text-blue-100">
           {monthlyReport?.month
             ? `Current reporting month: ${monthlyReport.month}. This panel is sourced from /api/admin/reports/monthly and updates as backend operations are processed.`
             : 'Monthly report data is unavailable right now, but the rest of the dashboard remains live.'}

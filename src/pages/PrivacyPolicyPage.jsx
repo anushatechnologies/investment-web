@@ -57,15 +57,15 @@ function PrivacyPolicyPage() {
     <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-4xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Legal</p>
-        <h1 className="mt-3 font-heading text-3xl font-bold text-slate-900">{document.title}</h1>
+        <h1 className="mt-3 font-heading text-3xl font-bold text-slate-900 dark:text-white">{document.title}</h1>
         {document.effectiveDate && (
-          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">
             Effective {String(document.effectiveDate).slice(0, 10)}
           </p>
         )}
-        <p className="mt-3 text-sm leading-7 text-slate-600">{document.summary}</p>
+        <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{document.summary}</p>
 
-        <div className="mt-8 whitespace-pre-line text-sm leading-7 text-slate-700">
+        <div className="mt-8 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-slate-200">
           {loading ? 'Loading policy...' : document.content}
         </div>
 

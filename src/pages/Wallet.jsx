@@ -6,7 +6,7 @@ import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import { getWallet, getWalletTransactionProof, getWalletTransactions, getWithdrawalSettings } from '../services/api';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 function toArray(payload) {
   if (Array.isArray(payload)) return payload;
@@ -94,7 +94,7 @@ function Wallet() {
     () =>
       transactions.map((item, index) => ({
         id: item.id || item.transactionId || `TXN${index + 1}`,
-        date: item.date || item.createdAt || '-',
+        date: formatDate(item.date || item.createdAt || '-'),
         source: item.description || readableTransactionType(item.transactionType || item.type || item.source),
         transactionType: readableTransactionType(item.transactionType || item.type),
         amount:
@@ -187,23 +187,23 @@ function Wallet() {
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-heading text-3xl font-semibold text-slate-900">{formatCurrency(availableBalance)}</span>
-              <span className="text-sm text-slate-500">Live balance</span>
+              <span className="font-heading text-3xl font-semibold text-slate-900 dark:text-white">{formatCurrency(availableBalance)}</span>
+              <span className="text-sm text-slate-500 dark:text-slate-300">Live balance</span>
             </div>
           </div>
         </SectionCard>
 
         <SectionCard title="Wallet Summary" subtitle="Quick view of payout policy and live wallet conditions.">
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm text-slate-500">Current available</p>
-              <p className="mt-3 font-heading text-2xl font-semibold text-slate-900">{formatCurrency(availableBalance)}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-sm text-slate-500 dark:text-slate-300">Current available</p>
+              <p className="mt-3 font-heading text-2xl font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(availableBalance)}</p>
             </div>
-            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm text-slate-500">Pending clearance</p>
-              <p className="mt-3 font-heading text-2xl font-semibold text-slate-900">{formatCurrency(pendingBalance)}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-sm text-slate-500 dark:text-slate-300">Pending clearance</p>
+              <p className="mt-3 font-heading text-2xl font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(pendingBalance)}</p>
             </div>
-            <div className="rounded-[24px] border border-blue-100 bg-blue-50 p-5 text-sm leading-7 text-blue-700">
+            <div className="rounded-[16px] border border-indigo-200 bg-indigo-50 p-5 text-sm leading-7 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-300">
               {withdrawalSettings.withdrawalEnabled ? (
                 <>
                   Withdrawals start at {formatCurrency(minimumWithdrawal)}
@@ -232,34 +232,34 @@ function Wallet() {
       {selectedProof && (
         <SectionCard title="Wallet Credit Proof" subtitle="Source details for the selected wallet entry.">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Type</p>
-              <p className="mt-2 font-semibold text-slate-900">{readableTransactionType(selectedProof.transactionType)}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Type</p>
+              <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">{readableTransactionType(selectedProof.transactionType)}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Amount</p>
-              <p className="mt-2 font-semibold text-slate-900">{formatCurrency(Number(selectedProof.amount || 0))}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Amount</p>
+              <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(Number(selectedProof.amount || 0))}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Direction</p>
-              <p className="mt-2 font-semibold text-slate-900">{selectedProof.direction || '-'}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Direction</p>
+              <p className="mt-2 font-semibold text-slate-900 dark:text-slate-100">{selectedProof.direction || '-'}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reference</p>
-              <p className="mt-2 break-all text-sm font-semibold text-slate-900">{selectedProof.referenceId || '-'}</p>
+            <div className="rounded-[16px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Reference</p>
+              <p className="mt-2 break-all text-sm font-semibold text-slate-900 dark:text-slate-100">{selectedProof.referenceId || '-'}</p>
             </div>
           </div>
 
           {selectedProof.referralCommission && (
-            <div className="mt-4 rounded-[18px] border border-blue-100 bg-blue-50 p-4">
-              <p className="text-sm font-semibold text-blue-900">Referral payout details</p>
+            <div className="mt-4 rounded-[16px] border border-indigo-200 bg-indigo-50 p-4 shadow-sm dark:border-indigo-500 dark:bg-indigo-900/30">
+              <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">Referral payout details</p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <p className="text-sm text-blue-700">Source investor: <span className="font-semibold">{selectedProof.referralCommission.sourceInvestorName}</span></p>
-                <p className="text-sm text-blue-700">Level: <span className="font-semibold">{selectedProof.referralCommission.level}</span></p>
-                <p className="text-sm text-blue-700">Rate: <span className="font-semibold">{selectedProof.referralCommission.rate}%</span></p>
-                <p className="text-sm text-blue-700">Source: <span className="font-semibold">{selectedProof.referralCommission.sourceAmountLabel}</span></p>
-                <p className="text-sm text-blue-700">Source amount: <span className="font-semibold">{formatCurrency(Number(selectedProof.referralCommission.sourceAmount || 0))}</span></p>
-                <p className="text-sm text-blue-700">Commission: <span className="font-semibold">{formatCurrency(Number(selectedProof.referralCommission.commissionAmount || 0))}</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Source investor: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedProof.referralCommission.sourceInvestorName}</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Level: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedProof.referralCommission.level}</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Rate: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedProof.referralCommission.rate}%</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Source: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{selectedProof.referralCommission.sourceAmountLabel}</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Source amount: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{formatCurrency(Number(selectedProof.referralCommission.sourceAmount || 0))}</span></p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">Commission: <span className="font-semibold text-indigo-900 dark:text-indigo-100">{formatCurrency(Number(selectedProof.referralCommission.commissionAmount || 0))}</span></p>
               </div>
             </div>
           )}

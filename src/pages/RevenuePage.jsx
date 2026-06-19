@@ -1,6 +1,6 @@
 import { Banknote, CircleDollarSign, Percent, TrendingUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, CircularProgress, Stack } from '@mui/material';
+import { Alert, Button, CircularProgress, Stack, useTheme } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Bar,
@@ -29,6 +29,8 @@ const statIcons = [Banknote, Percent, CircleDollarSign, TrendingUp];
 const statTones = ['blue', 'emerald', 'violet', 'amber'];
 
 function RevenuePage() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const [report, setReport] = useState(null);
   const [investments, setInvestments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -230,9 +232,17 @@ function RevenuePage() {
                   <Tooltip
                     formatter={(value) => [formatCurrency(value), 'Committed capital']}
                     contentStyle={{
-                      background: 'rgba(7, 17, 38, 0.95)',
-                      border: '1px solid rgba(148, 163, 184, 0.18)',
-                      borderRadius: '18px',
+                      background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(148, 163, 184, 0.18)'}`,
+                      borderRadius: '16px',
+                      boxShadow: isDark ? '0 12px 30px rgba(0,0,0,0.3)' : '0 12px 30px rgba(37,99,235,0.06)',
+                    }}
+                    itemStyle={{
+                      color: isDark ? '#f8fafc' : '#0f172a',
+                    }}
+                    labelStyle={{
+                      color: isDark ? '#94a3b8' : '#64748b',
+                      fontWeight: 600,
                     }}
                   />
                   <Bar dataKey="amount" radius={[14, 14, 0, 0]}>
@@ -268,18 +278,22 @@ function RevenuePage() {
                   <Tooltip
                     formatter={(value, name) => [formatCompactCurrency(value), name]}
                     contentStyle={{
-                      background: 'rgba(7, 17, 38, 0.95)',
-                      border: '1px solid rgba(148, 163, 184, 0.18)',
-                      borderRadius: '18px',
+                      background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                      border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(148, 163, 184, 0.18)'}`,
+                      borderRadius: '16px',
+                      boxShadow: isDark ? '0 12px 30px rgba(0,0,0,0.3)' : '0 12px 30px rgba(37,99,235,0.06)',
+                    }}
+                    itemStyle={{
+                      color: isDark ? '#f8fafc' : '#0f172a',
                     }}
                   />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-heading text-3xl font-semibold text-white">
+                <span className="font-heading text-3xl font-semibold text-slate-900 dark:text-white">
                   {formatCompactCurrency(totalRevenue)}
                 </span>
-                <span className="text-sm text-slate-400">Monthly mix total</span>
+                <span className="text-sm text-slate-500 dark:text-slate-300">Monthly mix total</span>
               </div>
             </div>
 
@@ -287,13 +301,13 @@ function RevenuePage() {
               {revenueSourceData.length > 0 ? revenueSourceData.map((item) => (
                 <div
                   key={item.name}
-                  className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                    <span className="text-sm font-medium text-slate-200">{item.name}</span>
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.name}</span>
                   </div>
-                  <span className="text-sm text-slate-400">
+                  <span className="text-sm text-slate-500 dark:text-slate-300">
                     {totalRevenue > 0 ? `${Math.round((item.value / totalRevenue) * 100)}%` : '0%'}
                   </span>
                 </div>

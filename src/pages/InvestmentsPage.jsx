@@ -116,8 +116,8 @@ function InvestmentsPage() {
       exportValue: (row) => row.investorName,
       render: (row) => (
         <div>
-          <p className="font-semibold text-white">{row.investorName}</p>
-          <p className="text-xs text-slate-500">{row.investorEmail}</p>
+          <p className="font-semibold text-slate-900 dark:text-white">{row.investorName}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-300">{row.investorEmail}</p>
         </div>
       ),
     },
@@ -158,7 +158,7 @@ function InvestmentsPage() {
         <button
           type="button"
           onClick={() => setSelectedInvestment(row)}
-          className="text-slate-400 transition hover:text-blue-500"
+          className="text-slate-500 dark:text-slate-300 transition hover:text-blue-500"
         >
           <Eye className="h-4 w-4" />
         </button>
@@ -213,19 +213,19 @@ function InvestmentsPage() {
         )}
       >
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Approved receipts</p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
+          <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] p-5">
+            <p className="text-sm text-slate-500 dark:text-slate-300">Approved receipts</p>
+            <p className="mt-3 font-heading text-xl font-semibold text-slate-900 dark:text-white">
               {formatNumber(investments.filter((item) => item.receiptApproved).length)}
             </p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-sm text-slate-400">Pending receipts</p>
-            <p className="mt-3 font-heading text-xl font-semibold text-white">
+          <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] p-5">
+            <p className="text-sm text-slate-500 dark:text-slate-300">Pending receipts</p>
+            <p className="mt-3 font-heading text-xl font-semibold text-slate-900 dark:text-white">
               {formatNumber(investments.filter((item) => !item.receiptApproved).length)}
             </p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-blue-500/10 p-5 text-sm leading-7 text-blue-100">
+          <div className="rounded-3xl border border-blue-500/20 bg-blue-500/5 dark:bg-blue-500/10 p-5 text-sm leading-7 text-blue-700 dark:text-blue-100">
             Investment edits are not exposed by the backend admin APIs. This page intentionally
             stays read-only and reflects the source-of-truth ledger.
           </div>

@@ -189,45 +189,64 @@ function AdminSidebarContent({ onLogout, onClose }) {
                   <ListItemButton
                     sx={{
                       position: 'relative',
-                      borderRadius: '16px',
-                      mb: 0.45,
-                      minHeight: 48,
-                      px: 1.1,
-                      color: isActive ? 'white' : alpha(isDark ? '#fff' : '#0f172a', isDark ? 0.70 : 0.68),
-                      bgcolor: isActive
-                        ? 'rgba(37,99,235,0.98)'
-                        : isDark ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.38)',
-                      boxShadow: isActive ? '0 16px 30px rgba(37,99,235,0.25)' : 'none',
+                      borderRadius: '14px',
+                      mb: 0.6,
+                      minHeight: 46,
+                      px: 1.5,
+                      color: isActive ? 'white' : alpha(isDark ? '#fff' : '#0f172a', isDark ? 0.72 : 0.65),
+                      background: isActive
+                        ? isDark 
+                          ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' 
+                          : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
+                        : 'transparent',
+                      boxShadow: isActive 
+                        ? isDark 
+                          ? '0 10px 22px -6px rgba(99, 102, 241, 0.42)' 
+                          : '0 10px 22px -6px rgba(79, 70, 229, 0.32)' 
+                        : 'none',
                       overflow: 'hidden',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&::before': {
                         content: '""',
                         position: 'absolute',
                         left: 0,
-                        top: 9,
-                        bottom: 9,
-                        width: 3,
+                        top: 10,
+                        bottom: 10,
+                        width: 3.5,
                         borderRadius: 99,
                         bgcolor: isActive ? '#fbbf24' : 'transparent',
                       },
                       '&:hover': {
-                        bgcolor: isActive ? 'rgba(37,99,235,0.98)' : alpha(isDark ? '#94a3b8' : '#2563eb', isDark ? 0.08 : 0.09),
-                        color: isActive ? 'white' : textPrimary,
+                        background: isActive 
+                          ? isDark 
+                            ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' 
+                            : 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)'
+                          : alpha(isDark ? '#94a3b8' : '#4f46e5', isDark ? 0.08 : 0.06),
+                        color: isActive ? 'white' : (isDark ? '#ffffff' : '#4f46e5'),
+                        transform: 'translateX(4px)',
                       },
                     }}
                   >
                     <ListItemIcon
                       sx={{
-                        minWidth: 38,
+                        minWidth: 32,
                         color: 'inherit',
-                        '& svg': {
-                          borderRadius: '12px',
-                        },
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
                       }}
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-4.5 w-4.5 transition-transform duration-200 group-hover:scale-110" />
                     </ListItemIcon>
-                    <ListItemText primary={label} primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 800 : 650 }} />
-                    {isActive && <ChevronRight className="h-4 w-4 opacity-80" />}
+                    <ListItemText 
+                      primary={label} 
+                      primaryTypographyProps={{ 
+                        fontSize: 13.5, 
+                        fontWeight: isActive ? 700 : 550,
+                        letterSpacing: '0.01em'
+                      }} 
+                    />
+                    {isActive && <ChevronRight className="h-3.5 w-3.5 opacity-80" />}
                   </ListItemButton>
                 )}
               </NavLink>

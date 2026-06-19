@@ -59,34 +59,34 @@ function KycStatusPage() {
   const reupload = reuploadDocs.length > 0 || ['REUPLOAD_REQUIRED', 'REJECTED'].includes(String(kycStatus).toUpperCase());
 
   return (
-    <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <h1 className="section-title">KYC Status</h1>
       <p className="section-copy mt-2">This page auto-refreshes every 15 seconds.</p>
       {error ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5">
-        <p className="text-sm text-slate-500">Current Status</p>
-        <p className="mt-1 text-xl font-semibold text-slate-900">{kycStatus}</p>
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 dark:border-slate-800 dark:bg-slate-800/50">
+        <p className="text-sm text-slate-500 dark:text-slate-300">Current Status</p>
+        <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">{kycStatus}</p>
         {submission?.rejectionReason ? <p className="mt-2 text-sm text-rose-700">Reason: {submission.rejectionReason}</p> : null}
-        {submission?.adminNotes ? <p className="mt-2 text-sm text-slate-600">Admin notes: {submission.adminNotes}</p> : null}
+        {submission?.adminNotes ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Admin notes: {submission.adminNotes}</p> : null}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-5">
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-4 py-5 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900">Document Review Breakdown</p>
-            <p className="mt-1 text-sm text-slate-500">Check which documents are approved, pending, or requested for reupload.</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Document Review Breakdown</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">Check which documents are approved, pending, or requested for reupload.</p>
           </div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {DOC_FIELDS.map((doc) => (
-            <div key={doc.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div key={doc.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
               <div className="flex items-start justify-between gap-3">
-                <p className="font-medium text-slate-900">{doc.label}</p>
+                <p className="font-medium text-slate-900 dark:text-white">{doc.label}</p>
                 <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeTone(submission?.[doc.statusKey])}`}>
                   {submission?.[doc.statusKey] || 'NOT_UPLOADED'}
                 </span>
               </div>
-              <p className="mt-3 text-sm text-slate-500">
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-300">
                 {submission?.[doc.reasonKey] ? `Reason: ${submission[doc.reasonKey]}` : 'No document-specific issue reported.'}
               </p>
             </div>
@@ -99,7 +99,7 @@ function KycStatusPage() {
         {reupload && canUpload ? (
           <div className="space-y-3">
             {reuploadDocs.length > 0 ? (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 Reupload required for: {reuploadDocs.map((doc) => doc.label).join(', ')}.
               </p>
             ) : null}
@@ -107,7 +107,7 @@ function KycStatusPage() {
           </div>
         ) : null}
         {approved && !canUpload ? (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
             Your KYC is approved. If the admin later requests a document update, this page will show the reupload action again.
           </p>
         ) : null}

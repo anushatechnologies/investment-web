@@ -43,3 +43,21 @@ export const formatShortTick = (value) => {
 
   return `\u20B9${value}`;
 };
+
+export const formatDate = (dateString) => {
+  if (!dateString || dateString === '-') return '-';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch (e) {
+    return dateString;
+  }
+};

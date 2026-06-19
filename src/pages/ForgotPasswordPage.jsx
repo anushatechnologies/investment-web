@@ -246,7 +246,7 @@ function ForgotPasswordPage() {
           </div>
           <div className="mt-6 text-center">
             <h2 className="font-heading text-2xl font-bold">{current.title}</h2>
-            <p className="mt-2 text-sm text-slate-300">{current.subtitle}</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">{current.subtitle}</p>
           </div>
         </div>
 
@@ -261,7 +261,7 @@ function ForgotPasswordPage() {
           {step === STEPS.IDENTIFIER && (
             <form onSubmit={handleStartRecovery} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Email or Mobile Number</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Email or Mobile Number</label>
                 <input
                   type="text"
                   required
@@ -271,14 +271,14 @@ function ForgotPasswordPage() {
                   placeholder="name@example.com or 9876543210"
                   autoFocus
                 />
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-300">
                   Email recovery sends a reset link. Mobile recovery uses a backend OTP.
                 </p>
               </div>
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Continue</span><ArrowRight className="h-4 w-4" /></>}
               </button>
-              <div className="text-center text-sm text-slate-600">
+              <div className="text-center text-sm text-slate-600 dark:text-slate-300">
                 <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-500">Back to login</Link>
               </div>
             </form>
@@ -287,7 +287,7 @@ function ForgotPasswordPage() {
           {step === STEPS.OTP && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">6-Digit OTP</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">6-Digit OTP</label>
                 <input
                   type="text"
                   required
@@ -301,7 +301,7 @@ function ForgotPasswordPage() {
               </div>
               <div className="text-center">
                 {otpTimer > 0 ? (
-                  <span className="text-sm text-slate-400">Resend OTP in {otpTimer}s</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-300">Resend OTP in {otpTimer}s</span>
                 ) : (
                   <button type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50">
                     Resend OTP
@@ -317,7 +317,7 @@ function ForgotPasswordPage() {
           {step === STEPS.PASSWORD && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">New Password</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">New Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -328,7 +328,7 @@ function ForgotPasswordPage() {
                     className="input-shell pr-11"
                     placeholder="Min 8 chars, uppercase, number, special"
                   />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300 hover:text-slate-600">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -336,18 +336,16 @@ function ForgotPasswordPage() {
                   <div className="mt-2">
                     <div className="h-1.5 w-full rounded-full bg-slate-200">
                       <div
-                        className={`h-1.5 rounded-full transition-all ${
-                          passwordStrength.label === 'Weak' ? 'bg-rose-500' : passwordStrength.label === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`}
+                        className={`h-1.5 rounded-full transition-all ${ passwordStrength.label === 'Weak' ? 'bg-rose-500' : passwordStrength.label === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500' }`}
                         style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Strength: {passwordStrength.label}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Strength: {passwordStrength.label}</p>
                   </div>
                 )}
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Confirm Password</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-200">Confirm Password</label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -358,7 +356,7 @@ function ForgotPasswordPage() {
                     className="input-shell pr-11"
                     placeholder="Re-enter password"
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300 hover:text-slate-600">
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -379,8 +377,8 @@ function ForgotPasswordPage() {
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                 <CheckCircle2 className="h-10 w-10" />
               </div>
-              <h3 className="font-heading text-xl font-bold text-slate-900">Recovery Complete</h3>
-              <p className="mt-2 text-sm text-slate-500">{infoMessage || 'Use your new password to sign in.'}</p>
+              <h3 className="font-heading text-xl font-bold text-slate-900 dark:text-white">Recovery Complete</h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">{infoMessage || 'Use your new password to sign in.'}</p>
               <div className="pt-6">
                 <button type="button" onClick={() => navigate('/login', { replace: true })} className="btn-primary w-full">
                   <span>Go to Login</span>

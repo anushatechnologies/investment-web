@@ -31,7 +31,7 @@ export default function DashboardPage() {
   if (!data) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-gray-600">No dashboard data available.</p>
+        <p className="text-gray-600 dark:text-slate-300">No dashboard data available.</p>
       </div>
     );
   }
