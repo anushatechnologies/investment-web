@@ -36,7 +36,13 @@ if (hasRealKeys) {
   auth = getAuth(app);
   auth.useDeviceLanguage();
 
-  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    /^192\.168\./.test(window.location.hostname) ||
+    /^10\./.test(window.location.hostname) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
+  );
   if (isLocalhost && isOtpTestMode) {
     auth.settings.appVerificationDisabledForTesting = true;
   }
@@ -75,7 +81,11 @@ export function getFirebaseOtpPreflightError() {
 
   const host = window.location.hostname;
   const protocol = window.location.protocol;
-  const isLocalhostHost = host === 'localhost' || host === '127.0.0.1';
+  const isLocalhostHost = host === 'localhost' ||
+    host === '127.0.0.1' ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
 
   if (protocol !== 'https:' && !isLocalhostHost) {
     return 'OTP requires HTTPS. Open this app on an HTTPS domain or localhost.';
