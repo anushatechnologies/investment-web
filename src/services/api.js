@@ -1182,6 +1182,18 @@ export function adminAdjustLedger({ userId, amount, reason }) {
   return request('/api/admin/ledger/adjust', { method: 'POST', body: { userId, amount, reason }, auth: true });
 }
 
+export function adminBroadcastNotification({ title, message, targetAudience, channel }) {
+  return request('/api/notifications/broadcast', { method: 'POST', body: { title, message, targetAudience, channel }, auth: true });
+}
+
+export function adminAssignSupportTicket(ticketId, assignedAdminId) {
+  return request(`/api/support/admin/tickets/${ticketId}/assign`, { method: 'POST', body: { assignedAdminId }, auth: true });
+}
+
+export function adminUpdateSupportTicketStatus(ticketId, status) {
+  return request(`/api/support/admin/tickets/${ticketId}/status`, { method: 'POST', body: { status }, auth: true });
+}
+
 export function adminGetWithdrawalSettings() {
   return request('/api/admin/withdrawals/settings', { auth: true });
 }
