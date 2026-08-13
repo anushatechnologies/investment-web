@@ -101,27 +101,28 @@ function Watchlist() {
             {displayPlans.map((plan) => {
               const planId = String(plan.id);
               const isSaved = watchlist.includes(planId);
-              const rate = Number(plan.monthlyInterestRate ?? plan.interestRate ?? 0);
-              const tenure = plan.tenureMonths || plan.durationMonths || plan.tenure || 'Flexible';
-              const yieldType = rate >= 2.2 ? 'High Yield' : 'Balanced';
+              const rate = Number(plan.monthlyInterestRate ?? plan.interestRate ?? 10.0);
+              const lockIn = plan.lockInMonths || plan.tenureMonths || 6;
+              const minAmt = planAmount(plan, 'minimumAmount', 10000);
+              const maxAmt = planAmount(plan, 'maximumAmount', 1000000);
 
               return (
                 <div 
                   key={planId} 
-                  className={`group relative overflow-hidden rounded-2xl border p-4 transition-all duration-300 ${ isSaved ? 'border-indigo-200 bg-indigo-50/10 dark:border-indigo-900/40 dark:bg-indigo-950/5' : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700' }`}
+                  className={`group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 ${ isSaved ? 'border-indigo-500 bg-indigo-50/20 dark:border-indigo-500/50 dark:bg-indigo-950/20 shadow-lg shadow-indigo-500/5' : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700' }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-slate-900 dark:text-white leading-tight">
-                          {plan.planName || plan.name || 'Investment Plan'}
+                        <p className="font-heading text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                          {plan.planName || plan.name || 'Anusha Standard Growth Plan'}
                         </p>
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${ yieldType === 'High Yield' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400' }`}>
-                          {yieldType}
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                          {rate}% / Mo Yield
                         </span>
                       </div>
                       <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-300">
-                        Limits: {formatCurrency(planAmount(plan, 'minimumAmount', 0))} – {formatCurrency(planAmount(plan, 'maximumAmount', 0))}
+                        {plan.description || `Deposit between ${formatCurrency(minAmt)} and ${formatCurrency(maxAmt)} with ${lockIn}-month lock-in.`}
                       </p>
                     </div>
                     <button
@@ -134,25 +135,31 @@ function Watchlist() {
                     </button>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] font-bold">
+                  <div className="mt-4 grid grid-cols-4 gap-2 text-[11px] font-bold">
                     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-800/20">
-                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Interest</p>
-                      <div className="mt-1 flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                        <TrendingUp className="h-4 w-4 text-indigo-500" />
-                        <span>{rate || '-'}% /mo</span>
+                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Monthly Rate</p>
+                      <div className="mt-1 flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-extrabold">
+                        <TrendingUp className="h-4 w-4" />
+                        <span>{rate}% /mo</span>
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-800/20">
-                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Tenure</p>
-                      <div className="mt-1 flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                        <Clock className="h-4 w-4 text-blue-500" />
-                        <span>{tenure} mos</span>
+                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Lock-In</p>
+                      <div className="mt-1 flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                        <Clock className="h-4 w-4" />
+                        <span>{lockIn} Months</span>
                       </div>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-800/20">
-                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Risk Level</p>
-                      <div className="mt-1">
-                        <StatusBadge label={rate >= 2.2 ? 'Moderate' : 'Conservative'} />
+                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Maturity Return</p>
+                      <div className="mt-1 text-slate-900 dark:text-white">
+                        <span>90% Principal</span>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 dark:border-slate-800 dark:bg-slate-800/20">
+                      <p className="text-slate-500 dark:text-slate-300 uppercase tracking-wider text-[9px]">Early Exit</p>
+                      <div className="mt-1 text-slate-600 dark:text-slate-300">
+                        <span>70% Principal</span>
                       </div>
                     </div>
                   </div>
