@@ -1238,6 +1238,14 @@ export function adminGetReferralReport() {
   return request('/api/admin/referrals/report', { auth: true });
 }
 
+export function adminGetSystemSettings() {
+  return request('/api/admin/settings', { auth: true });
+}
+
+export function adminUpdateSystemSettings(settings) {
+  return request('/api/admin/settings', { method: 'PUT', body: settings, auth: true });
+}
+
 export function adminGetReferralCommissions() {
   return request('/api/admin/referrals/commissions', { auth: true });
 }
