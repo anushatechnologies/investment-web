@@ -19,7 +19,7 @@ import DataTable from '../components/DataTable';
 import SectionCard from '../components/SectionCard';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { getOwnWithdrawals, requestWithdrawal, getWallet, getWithdrawalSettings } from '../services/api';
+import { getOwnWithdrawals, requestWithdrawal, getWallet, getWithdrawalSettings, verifyMpin } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
 function toArray(payload) {
