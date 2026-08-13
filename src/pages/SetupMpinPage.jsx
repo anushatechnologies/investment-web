@@ -24,7 +24,12 @@ function SetupMpinPage() {
     setLoading(true);
     try {
       const response = await setMpin(mpin);
-      saveOnboardingStatus(response);
+      saveOnboardingStatus({
+        ...response,
+        mpinCreated: true,
+        accountStatus: 'ACTIVE',
+        onboardingStatus: 'ACTIVE'
+      });
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || 'Failed to set MPIN.');

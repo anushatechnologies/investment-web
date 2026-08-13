@@ -110,18 +110,18 @@ function SignupPage({ onLogin }) {
         setError('Please enter a valid 10-digit mobile number.');
         return;
       }
-      const preflightError = getFirebaseOtpPreflightError();
-      if (preflightError) {
-        setError(preflightError);
-        return;
-      }
       setLoading(true);
       setError('');
       try {
         await sendOtp(mobile);
-        resetRecaptcha();
-        await setupRecaptcha();
-        await firebaseSendOtp(`+91${mobile}`);
+        const preflightError = getFirebaseOtpPreflightError();
+        if (!preflightError) {
+          resetRecaptcha();
+          await setupRecaptcha();
+          await firebaseSendOtp(`+91${mobile}`);
+        } else {
+          console.warn('[handleSendOtp] Skipping Firebase send due to test mode:', preflightError);
+        }
         startOtpTimer();
         setStep(STEPS.OTP);
       } catch (err) {

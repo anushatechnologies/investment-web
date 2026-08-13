@@ -101,10 +101,7 @@ function Header({ onOpenSidebar }) {
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <p className="inline-flex rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white">
-                Web Dashboard
-              </p>
-              <h1 className="mt-3 font-heading text-2xl font-semibold tracking-tight text-slate-900">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
                 {meta.title}
               </h1>
               <p className="mt-1 hidden text-sm text-slate-500 sm:block">{meta.summary}</p>
@@ -125,7 +122,11 @@ function Header({ onOpenSidebar }) {
               )}
             </button>
 
-            <div className="glass-panel flex items-center gap-3 rounded-2xl px-3 py-2">
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              className="glass-panel flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50 active:scale-[0.98]"
+            >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 font-heading text-sm font-bold text-white">
                 {userProfile.avatar}
               </div>
@@ -134,7 +135,7 @@ function Header({ onOpenSidebar }) {
                 <p className="text-sm text-slate-500">{userProfile.membership}</p>
               </div>
               <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
-            </div>
+            </button>
           </div>
         </div>
       </div>
