@@ -241,10 +241,12 @@ function LoginPage({ onLogin }) {
             onChange={(e) => setIdentifier(credentialMode === 'mpin' ? e.target.value.replace(/\D/g, '').slice(0, 10) : e.target.value)}
             required
             fullWidth
-            inputProps={{
-              inputMode: credentialMode === 'mpin' ? 'numeric' : 'email',
-              maxLength: credentialMode === 'mpin' ? 10 : undefined,
-              autoComplete: 'username',
+            slotProps={{
+              htmlInput: {
+                inputMode: credentialMode === 'mpin' ? 'numeric' : 'email',
+                maxLength: credentialMode === 'mpin' ? 10 : undefined,
+                autoComplete: 'username',
+              },
             }}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
           />
@@ -263,24 +265,26 @@ function LoginPage({ onLogin }) {
               required
               fullWidth
               autoComplete="current-password"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <KeyRound size={16} style={{ color: theme.palette.text.secondary }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <KeyRound size={16} style={{ color: theme.palette.text.secondary }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
             />
@@ -290,7 +294,7 @@ function LoginPage({ onLogin }) {
                 Enter 4-digit MPIN
               </Typography>
               <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-                <Stack direction="row" spacing={1.5} justifyContent="center" sx={{ py: 1 }}>
+                <Stack direction="row" spacing={1.5} sx={{ py: 1, justifyContent: 'center' }}>
                   {Array.from({ length: 4 }).map((_, i) => {
                     const isActive = mpin.length === i;
                     return (
@@ -349,7 +353,7 @@ function LoginPage({ onLogin }) {
           )}
 
           {/* Forgot links */}
-          <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={1}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
             <Typography
               component={Link}
               to="/forgot-password"

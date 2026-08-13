@@ -69,90 +69,100 @@ function BankLinkPage() {
         {error && <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>}
 
         <form onSubmit={onSubmit}>
-          <Grid container spacing={2.5} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mt: 1 }}>
+            <Box sx={{ gridColumn: { xs: '1 / -1', md: '1 / -1' } }}>
               <TextField
                 fullWidth
                 label="Account Holder Name"
                 value={form.accountHolderName}
                 onChange={(e) => setForm((p) => ({ ...p, accountHolderName: e.target.value }))}
                 required
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <BadgeRoundedIcon color="primary" />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeRoundedIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="Bank Account Number"
                 value={form.bankAccountNumber}
                 onChange={(e) => setForm((p) => ({ ...p, bankAccountNumber: e.target.value.replace(/\D/g, '') }))}
                 required
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PaymentsRoundedIcon color="primary" />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PaymentsRoundedIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="Confirm Bank Account Number"
                 value={form.confirmBankAccountNumber}
                 onChange={(e) => setForm((p) => ({ ...p, confirmBankAccountNumber: e.target.value.replace(/\D/g, '') }))}
                 required
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PaymentsRoundedIcon color="primary" />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PaymentsRoundedIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="IFSC Code"
                 value={form.bankIfscCode}
                 onChange={(e) => setForm((p) => ({ ...p, bankIfscCode: e.target.value.toUpperCase() }))}
                 required
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AccountBalanceRoundedIcon color="primary" />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccountBalanceRoundedIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 label="Bank Name"
                 value={form.bankName}
                 onChange={(e) => setForm((p) => ({ ...p, bankName: e.target.value }))}
                 required
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AccountBalanceRoundedIcon color="primary" />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccountBalanceRoundedIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" sx={{ mt: 4 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 4, justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
               After bank linking succeeds, the onboarding flow will take you directly to account activation.
             </Typography>

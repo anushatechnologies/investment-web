@@ -282,7 +282,7 @@ function AuthShell({
           {/* Progress bar */}
           {typeof progress === 'number' && (
             <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.primary' }}>
                   {currentStepLabel}
                 </Typography>
