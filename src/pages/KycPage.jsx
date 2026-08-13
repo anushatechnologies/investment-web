@@ -78,6 +78,11 @@ function UploadField({ title, accept, file, onChange, helper, status, reason, re
     return URL.createObjectURL(file);
   }, [file]);
 
+  const fileSizeMb = useMemo(() => {
+    if (!file) return null;
+    return (file.size / (1024 * 1024)).toFixed(2);
+  }, [file]);
+
   const normalizedStatus = String(status || '').trim().toUpperCase();
   
   let StatusBadge = null;
@@ -101,7 +106,7 @@ function UploadField({ title, accept, file, onChange, helper, status, reason, re
         </div>
         <div>
           <h4 className="font-bold text-slate-900 dark:text-white leading-tight">{title}</h4>
-          <p className="text-[11px] text-slate-500 dark:text-slate-300 line-clamp-1 mt-0.5">{file ? file.name : helper}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-300 line-clamp-1 mt-0.5">{file ? `${file.name} (${fileSizeMb} MB)` : helper}</p>
         </div>
       </div>
 
