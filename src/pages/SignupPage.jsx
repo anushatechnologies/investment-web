@@ -38,6 +38,81 @@ function getPasswordStrength(password) {
   return { label: 'Strong', score };
 }
 
+/* ── Interactive 6-Digit OTP Box Grid ───────── */
+function OtpBoxes({ value, onChange }) {
+  const digits = Array.from({ length: 6 }).map((_, i) => value[i] || '');
+  return (
+    <div className="relative flex justify-center py-2">
+      <div className="flex gap-2 sm:gap-3">
+        {digits.map((digit, i) => {
+          const isActive = value.length === i;
+          const isFilled = value.length > i;
+          return (
+            <div
+              key={i}
+              className={`flex h-12 w-10 sm:h-14 sm:w-12 items-center justify-center rounded-2xl border-2 text-xl font-black transition-all duration-200 ${
+                isActive
+                  ? 'border-blue-600 bg-blue-50/60 text-blue-600 shadow-[0_0_16px_rgba(37,99,235,0.25)] dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-400'
+                  : isFilled
+                    ? 'border-blue-600/80 bg-blue-50/20 text-slate-900 dark:border-blue-500/60 dark:text-white'
+                    : 'border-slate-200 bg-slate-50/50 text-slate-400 dark:border-slate-800 dark:bg-slate-900/50'
+              }`}
+            >
+              {digit || (isActive ? <span className="h-4 w-0.5 animate-pulse bg-blue-600 dark:bg-blue-400" /> : <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" />)}
+            </div>
+          );
+        })}
+      </div>
+      <input
+        type="tel"
+        inputMode="numeric"
+        maxLength={6}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        autoFocus
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </div>
+  );
+}
+
+/* ── Interactive MPIN PIN Box Grid ────────── */
+function MpinBoxes({ value, onChange, length = 4 }) {
+  const digits = Array.from({ length }).map((_, i) => value[i] || '');
+  return (
+    <div className="relative flex justify-center py-2">
+      <div className="flex gap-3 sm:gap-4">
+        {digits.map((digit, i) => {
+          const isActive = value.length === i;
+          const isFilled = value.length > i;
+          return (
+            <div
+              key={i}
+              className={`flex h-14 w-12 sm:h-16 sm:w-14 items-center justify-center rounded-2xl border-2 text-2xl font-black transition-all duration-200 ${
+                isActive
+                  ? 'border-blue-600 bg-blue-50/60 text-blue-600 shadow-[0_0_16px_rgba(37,99,235,0.25)] dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-400'
+                  : isFilled
+                    ? 'border-blue-600 bg-blue-500/10 text-blue-600 dark:border-blue-500 dark:bg-blue-500/20 dark:text-blue-400'
+                    : 'border-slate-200 bg-slate-50/50 text-slate-400 dark:border-slate-800 dark:bg-slate-900/50'
+              }`}
+            >
+              {isFilled ? <span className="h-3 w-3 rounded-full bg-blue-600 dark:bg-blue-400" /> : (isActive ? <span className="h-5 w-0.5 animate-pulse bg-blue-600 dark:bg-blue-400" /> : <span className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" />)}
+            </div>
+          );
+        })}
+      </div>
+      <input
+        type="tel"
+        inputMode="numeric"
+        maxLength={length}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, length))}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </div>
+  );
+}
+
 function SignupPage({ onLogin }) {
   const navigate = useNavigate();
   const timerRef = useRef(null);
@@ -570,11 +645,11 @@ function SignupPage({ onLogin }) {
           {step === STEPS.OTP && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">6-Digit OTP</label>
-                <input type="text" required maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-xl tracking-[0.5em]" placeholder="* * * * * *" autoFocus />
+                <label className="mb-2 block text-center text-sm font-medium text-slate-700 dark:text-slate-300">Enter 6-Digit OTP</label>
+                <OtpBoxes value={otp} onChange={setOtp} />
               </div>
-              <div className="text-center">{otpTimer > 0 ? <span className="text-sm text-slate-400">Resend OTP in {otpTimer}s</span> : <button id="resend-otp-btn" type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50">Resend OTP</button>}</div>
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Verify OTP</span><ArrowRight className="h-4 w-4" /></>}</button>
+              <div className="text-center">{otpTimer > 0 ? <span className="text-sm text-slate-400">Resend OTP in {otpTimer}s</span> : <button id="resend-otp-btn" type="button" onClick={handleResendOtp} disabled={loading} className="text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400 disabled:opacity-50">Resend OTP</button>}</div>
+              <button type="submit" disabled={loading || otp.length !== 6} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Verify OTP</span><ArrowRight className="h-4 w-4" /></>}</button>
             </form>
           )}
 
@@ -726,10 +801,19 @@ function SignupPage({ onLogin }) {
 
           {step === STEPS.MPIN && (
             <form onSubmit={handleSetMpin} className="space-y-5">
-              <div><label className="mb-2 block text-sm font-medium text-slate-700">Set MPIN</label><input type="password" required maxLength={6} minLength={4} value={mpin} onChange={(e) => setMpinValue(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-2xl tracking-[0.5em]" placeholder="* * * *" autoFocus /></div>
-              <div><label className="mb-2 block text-sm font-medium text-slate-700">Confirm MPIN</label><input type="password" required maxLength={6} minLength={4} value={mpinConfirm} onChange={(e) => setMpinConfirm(e.target.value.replace(/\D/g, ''))} className="input-shell text-center text-2xl tracking-[0.5em]" placeholder="* * * *" /></div>
+              <div>
+                <label className="mb-1 block text-center text-sm font-semibold text-slate-800 dark:text-slate-200">Set 4-Digit MPIN</label>
+                <p className="mb-2 text-center text-xs text-slate-500">Your MPIN replaces passwords for mobile login and withdrawals.</p>
+                <MpinBoxes value={mpin} onChange={setMpinValue} length={4} />
+              </div>
+              {mpin.length === 4 && (
+                <div>
+                  <label className="mb-1 block text-center text-sm font-semibold text-slate-800 dark:text-slate-200">Confirm MPIN</label>
+                  <MpinBoxes value={mpinConfirm} onChange={setMpinConfirm} length={4} />
+                </div>
+              )}
               <p className="text-center text-xs text-slate-500">Do not use simple patterns like 1234 or 1111.</p>
-              <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Set MPIN</span><ArrowRight className="h-4 w-4" /></>}</button>
+              <button type="submit" disabled={loading || mpin.length !== 4 || mpinConfirm.length !== 4} className="btn-primary w-full disabled:opacity-60">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span>Set MPIN</span><ArrowRight className="h-4 w-4" /></>}</button>
             </form>
           )}
 
