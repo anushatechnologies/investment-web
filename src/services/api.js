@@ -607,6 +607,14 @@ export function setMpin(mpin) {
   });
 }
 
+export function verifyMpin(mpin) {
+  return request('/api/auth/verify-mpin', {
+    method: 'POST',
+    body: { mpin },
+    auth: true,
+  });
+}
+
 /**
  * Step 5: Email/password login (admin or investor password login)
  */
