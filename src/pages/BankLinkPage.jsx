@@ -17,6 +17,24 @@ import { useNavigate } from 'react-router-dom';
 import { linkBank, saveOnboardingStatus } from '../services/api';
 import { clearOnboardingDraft, getOnboardingDraft } from '../utils/onboardingDraftStore';
 
+const BANK_IFSC_MAP = {
+  SBIN: 'State Bank of India',
+  HDFC: 'HDFC Bank',
+  ICIC: 'ICICI Bank',
+  UTIB: 'Axis Bank',
+  PUNB: 'Punjab National Bank',
+  BARB: 'Bank of Baroda',
+  CNRB: 'Canara Bank',
+  KKBK: 'Kotak Mahindra Bank',
+  INDB: 'IndusInd Bank',
+  YESB: 'Yes Bank',
+  IDFB: 'IDFC FIRST Bank',
+  UBIN: 'Union Bank of India',
+  MAHB: 'Bank of Maharashtra',
+  IOBA: 'Indian Overseas Bank',
+  CBIN: 'Central Bank of India',
+};
+
 function BankLinkPage() {
   const navigate = useNavigate();
   const draft = getOnboardingDraft();
@@ -29,6 +47,17 @@ function BankLinkPage() {
     bankIfscCode: draft.bankIfscCode || '',
     bankName: draft.bankName || '',
   });
+
+  const handleIfscChange = (ifscValue) => {
+    const cleanIfsc = ifscValue.toUpperCase().trim();
+    const prefix = cleanIfsc.substring(0, 4);
+    const inferredBank = BANK_IFSC_MAP[prefix];
+    setForm((p) => ({
+      ...p,
+      bankIfscCode: cleanIfsc,
+      bankName: inferredBank || p.bankName,
+    }));
+  };
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -129,7 +158,7 @@ function BankLinkPage() {
                 fullWidth
                 label="IFSC Code"
                 value={form.bankIfscCode}
-                onChange={(e) => setForm((p) => ({ ...p, bankIfscCode: e.target.value.toUpperCase() }))}
+                onChange={(e) => handleIfscChange(e.target.value)}
                 required
                 slotProps={{
                   input: {
