@@ -774,6 +774,10 @@ export function verifyRazorpayPayment({ investmentId, razorpayOrderId, razorpayP
   });
 }
 
+export function getReceiptStatus(investmentId) {
+  return request(`/api/receipts/${investmentId}/status`, { auth: true });
+}
+
 export function uploadPaymentReceipt({ investmentId, receiptFile, paymentAmount, paymentDate, paymentMode, bankReference }) {
   const formData = new FormData();
   formData.append('receiptFile', receiptFile);
