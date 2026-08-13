@@ -1058,6 +1058,30 @@ export function adminGetAllPlans() {
   return request('/api/admin/plans', { auth: true });
 }
 
+export function adminSubmitPlan(planId) {
+  return request(`/api/admin/plans/${planId}/submit`, { method: 'POST', auth: true });
+}
+
+export function adminApprovePlan(planId, notes) {
+  return request(`/api/admin/plans/${planId}/approve`, { method: 'POST', body: { notes }, auth: true });
+}
+
+export function adminRejectPlan(planId, notes) {
+  return request(`/api/admin/plans/${planId}/reject`, { method: 'POST', body: { notes }, auth: true });
+}
+
+export function adminPublishPlan(planId) {
+  return request(`/api/admin/plans/${planId}/publish`, { method: 'POST', auth: true });
+}
+
+export function adminPausePlan(planId) {
+  return request(`/api/admin/plans/${planId}/pause`, { method: 'POST', auth: true });
+}
+
+export function adminClosePlan(planId) {
+  return request(`/api/admin/plans/${planId}/close`, { method: 'POST', auth: true });
+}
+
 export function adminCreatePlan(plan) {
   return request('/api/admin/plans', {
     method: 'POST',
