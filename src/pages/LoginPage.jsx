@@ -27,18 +27,18 @@ import { resolveInvestorRoute } from '../utils/onboardingRouter';
 
 const highlights = [
   {
-    title: 'Investor-ready dashboard',
-    copy: 'Track investments, interest payouts, receipts, referrals, and onboarding status in one place.',
+    title: '10.0% Monthly Yield Engine',
+    copy: 'Automated 30-day payout calculation credited directly to your verified wallet balance.',
     icon: <BriefcaseBusiness size={18} />,
   },
   {
-    title: 'Secure admin controls',
-    copy: 'Admin users can review KYC, verify payments, process withdrawals, and manage accounts.',
+    title: 'Bank-Grade Security & MPIN Gate',
+    copy: 'Protected by BCrypt password encryption, 256-bit SSL, and 4-digit MPIN withdrawal authorization.',
     icon: <ShieldCheck size={18} />,
   },
   {
-    title: 'Fast access options',
-    copy: 'Sign in using email & password or use MPIN with your mobile number for repeat access.',
+    title: 'Instant Settlements & Auto IFSC',
+    copy: 'Direct NEFT/IMPS withdrawals to linked bank accounts with real-time IFSC resolution.',
     icon: <Smartphone size={18} />,
   },
 ];
@@ -198,12 +198,12 @@ function LoginPage({ onLogin }) {
 
   return (
     <AuthShell
-      eyebrow="Investor Portal"
+      eyebrow="EXECUTIVE PORTAL"
       title="Sign in to your account"
-      subtitle="Use email and password, or use mobile number with MPIN."
-      sideLabel="Secure Access"
-      sideTitle="A cleaner investor login with clear paths for users and admins."
-      sideDescription="Sign in, finish pending onboarding, and continue directly into your portfolio or review actions."
+      subtitle="Enter your email & password, or mobile number & 4-digit MPIN."
+      sideLabel="INSTITUTIONAL GRADE"
+      sideTitle="High-Yield Wealth Management Engine"
+      sideDescription="Institutional-grade security with automated 10.0% monthly interest payouts, verified KYC compliance, and instant wallet settlements."
       sideHighlights={highlights}
       error={error}
       footer={

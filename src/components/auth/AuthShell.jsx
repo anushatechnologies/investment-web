@@ -159,36 +159,36 @@ function AuthShell({
             overflow: 'hidden',
             px: 6,
             py: 6,
-            background: 'linear-gradient(155deg, #071a31 0%, #0d274b 50%, #0a1e3b 100%)',
+            background: 'linear-gradient(155deg, #050b18 0%, #0d1b3e 50%, #060e24 100%)',
           }}
         >
-          {/* Decorative glows */}
-          <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 10% 20%, rgba(56,189,248,0.18), transparent 35%), radial-gradient(circle at 85% 80%, rgba(37,99,235,0.22), transparent 30%)', pointerEvents: 'none' }} />
+          {/* Decorative ambient glowing orbs */}
+          <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 15% 20%, rgba(37,99,235,0.35), transparent 40%), radial-gradient(circle at 85% 75%, rgba(16,185,129,0.22), transparent 35%)', pointerEvents: 'none' }} />
 
           <Stack sx={{ position: 'relative', height: '100%', gap: 4 }}>
             {/* Brand */}
             <Stack direction="row" spacing={2} alignItems="center">
               <Box component="img" src={BRAND_LOGO_PRIMARY} alt="Anusha Trade"
                 onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
-                sx={{ width: 60, height: 60, borderRadius: '18px', bgcolor: 'white', p: 0.6, objectFit: 'contain' }}
+                sx={{ width: 60, height: 60, borderRadius: '18px', bgcolor: 'white', p: 0.6, objectFit: 'contain', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
               />
               <Box>
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.1 }}>Anusha Trade</Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Investor account workspace</Typography>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.1, fontFamily: '"Sora", sans-serif' }}>Anusha Trade</Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 600 }}>Executive Wealth Management</Typography>
               </Box>
             </Stack>
 
             {/* Side content */}
             <Box sx={{ flex: 1 }}>
               {sideLabel && (
-                <Box sx={{ display: 'inline-flex', px: 2, py: 0.75, borderRadius: '99px', bgcolor: 'rgba(255,255,255,0.1)', mb: 2.5 }}>
-                  <Typography sx={{ color: 'white', fontWeight: 800, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{sideLabel}</Typography>
+                <Box sx={{ display: 'inline-flex', px: 2, py: 0.75, borderRadius: '99px', bgcolor: 'rgba(37,99,235,0.25)', border: '1px solid rgba(59,130,246,0.3)', mb: 2.5 }}>
+                  <Typography sx={{ color: '#93c5fd', fontWeight: 800, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{sideLabel}</Typography>
                 </Box>
               )}
-              <Typography variant="h2" sx={{ fontSize: { lg: 40, xl: 48 }, color: 'white', lineHeight: 1.18, fontWeight: 700, maxWidth: 500 }}>
+              <Typography variant="h2" sx={{ fontSize: { lg: 38, xl: 44 }, color: 'white', lineHeight: 1.18, fontWeight: 800, maxWidth: 500, fontFamily: '"Sora", sans-serif' }}>
                 {sideTitle}
               </Typography>
-              <Typography sx={{ mt: 2.5, color: 'rgba(255,255,255,0.72)', lineHeight: 1.85, fontSize: 15, maxWidth: 480 }}>
+              <Typography sx={{ mt: 2.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.85, fontSize: 14.5, maxWidth: 480 }}>
                 {sideDescription}
               </Typography>
             </Box>
@@ -197,9 +197,9 @@ function AuthShell({
             {sideHighlights.length > 0 && (
               <Stack spacing={1.5}>
                 {sideHighlights.map((item) => (
-                  <Box key={item.title} sx={{ p: 2, borderRadius: '18px', bgcolor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Box sx={{ width: 38, height: 38, display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: 'rgba(59,130,246,0.2)', color: '#93c5fd', flexShrink: 0 }}>
+                  <Box key={item.title} sx={{ p: 2.25, borderRadius: '20px', bgcolor: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', transition: 'all 0.3s ease', '&:hover': { bgcolor: 'rgba(255,255,255,0.09)', borderColor: 'rgba(59,130,246,0.4)', transform: 'translateY(-2px)' } }}>
+                    <Stack direction="row" spacing={1.75} alignItems="center">
+                      <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '14px', bgcolor: 'rgba(37,99,235,0.3)', color: '#93c5fd', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.2)' }}>
                         {item.icon}
                       </Box>
                       <Box>
