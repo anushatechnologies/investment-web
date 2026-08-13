@@ -1007,6 +1007,21 @@ export function adminGetPendingKyc() {
   return request('/api/admin/kyc/pending', { auth: true });
 }
 
+export function adminGetAllKyc(status = 'ALL') {
+  return request(`/api/admin/kyc/all?status=${encodeURIComponent(status)}`, { auth: true });
+}
+
+export function adminGetAllBankAccounts() {
+  return request('/api/admin/kyc/bank-accounts', { auth: true });
+}
+
+export function adminVerifyBankAccount(bankId) {
+  return request(`/api/admin/kyc/bank-accounts/${bankId}/verify`, {
+    method: 'POST',
+    auth: true,
+  });
+}
+
 export function adminGetKycDocuments(kycId) {
   return request(`/api/admin/kyc/${kycId}/documents`, { auth: true });
 }
