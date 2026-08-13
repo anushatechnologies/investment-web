@@ -136,79 +136,66 @@ function AuthShell({
         sx={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '1.1fr 0.9fr' },
-          maxWidth: { xs: '100%', sm: 520, lg: 1180 },
+          gridTemplateColumns: { xs: '1fr', lg: sideHighlights.length === 0 ? '1fr' : '1.1fr 0.9fr' },
+          maxWidth: { xs: '100%', sm: 520, lg: sideHighlights.length === 0 ? 480 : 1180 },
           mx: 'auto',
           width: '100%',
-          my: { xs: 0, sm: 3, lg: 4 },
+          my: { xs: 0, sm: 3, lg: 5 },
           overflow: 'hidden',
           borderRadius: { xs: 0, sm: '28px', lg: '32px' },
           border: { xs: 'none', sm: '1px solid' },
           borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(148,163,184,0.15)',
           boxShadow: { xs: 'none', sm: isDark ? '0 40px 80px rgba(0,0,0,0.4)' : '0 40px 80px rgba(15,23,42,0.1)' },
           bgcolor: isDark ? '#0b1527' : 'common.white',
-          alignSelf: { xs: 'stretch', sm: 'start' },
+          alignSelf: { xs: 'stretch', sm: 'center' },
         }}
       >
-        {/* ── Left: Feature panel (desktop only) ── */}
-        <Box
-          sx={{
-            display: { xs: 'none', lg: 'flex' },
-            flexDirection: 'column',
-            position: 'relative',
-            overflow: 'hidden',
-            px: 6,
-            py: 6,
-            background: 'linear-gradient(155deg, #050b18 0%, #0d1b3e 50%, #060e24 100%)',
-          }}
-        >
-          {/* Decorative ambient glowing orbs */}
-          <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 15% 20%, rgba(37,99,235,0.35), transparent 40%), radial-gradient(circle at 85% 75%, rgba(16,185,129,0.22), transparent 35%)', pointerEvents: 'none' }} />
+        {/* ── Left: Feature panel (only if sideHighlights provided) ── */}
+        {sideHighlights.length > 0 && (
+          <Box
+            sx={{
+              display: { xs: 'none', lg: 'flex' },
+              flexDirection: 'column',
+              position: 'relative',
+              overflow: 'hidden',
+              px: 6,
+              py: 6,
+              background: 'linear-gradient(155deg, #050b18 0%, #0d1b3e 50%, #060e24 100%)',
+            }}
+          >
+            {/* Decorative ambient glowing orbs */}
+            <Box sx={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 15% 20%, rgba(37,99,235,0.35), transparent 40%), radial-gradient(circle at 85% 75%, rgba(16,185,129,0.22), transparent 35%)', pointerEvents: 'none' }} />
 
-          <Stack sx={{ position: 'relative', height: '100%', gap: 4 }}>
-            {/* Brand */}
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Box component="img" src={BRAND_LOGO_PRIMARY} alt="Anusha Trade"
-                onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
-                sx={{ width: 60, height: 60, borderRadius: '18px', bgcolor: 'white', p: 0.6, objectFit: 'contain', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
-              />
-              <Box>
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.1, fontFamily: '"Sora", sans-serif' }}>Anusha Trade</Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 600 }}>Executive Wealth Management</Typography>
-              </Box>
-            </Stack>
-
-            {/* Side content */}
-            <Box sx={{ flex: 1 }}>
-              {sideLabel && (
-                <Box sx={{ display: 'inline-flex', px: 2, py: 0.75, borderRadius: '99px', bgcolor: 'rgba(37,99,235,0.25)', border: '1px solid rgba(59,130,246,0.3)', mb: 2.5 }}>
-                  <Typography sx={{ color: '#93c5fd', fontWeight: 800, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{sideLabel}</Typography>
-                </Box>
-              )}
-              <Typography variant="h2" sx={{ fontSize: { lg: 38, xl: 44 }, color: 'white', lineHeight: 1.18, fontWeight: 800, maxWidth: 500, fontFamily: '"Sora", sans-serif' }}>
-                {sideTitle}
-              </Typography>
-              <Typography sx={{ mt: 2.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.85, fontSize: 14.5, maxWidth: 480 }}>
-                {sideDescription}
-              </Typography>
-            </Box>
-
-            {/* Minimal Metric Pill Strip */}
-            {sideHighlights.length === 0 && (
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mt: 3, gap: 1 }}>
-                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(37,99,235,0.2)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontSize: 12, fontWeight: 700 }}>
-                  10.0% Monthly Yield
-                </Box>
-                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontSize: 12, fontWeight: 700 }}>
-                  6-Month Lock-in
-                </Box>
-                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', fontSize: 12, fontWeight: 700 }}>
-                  Bank-Grade Encryption
+            <Stack sx={{ position: 'relative', height: '100%', gap: 4 }}>
+              {/* Brand */}
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Box component="img" src={BRAND_LOGO_PRIMARY} alt="Anusha Trade"
+                  onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
+                  sx={{ width: 60, height: 60, borderRadius: '18px', bgcolor: 'white', p: 0.6, objectFit: 'contain', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
+                />
+                <Box>
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.1, fontFamily: '"Sora", sans-serif' }}>Anusha Trade</Typography>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 600 }}>Executive Wealth Management</Typography>
                 </Box>
               </Stack>
-            )}
-          </Stack>
-        </Box>
+
+              {/* Side content */}
+              <Box sx={{ flex: 1 }}>
+                {sideLabel && (
+                  <Box sx={{ display: 'inline-flex', px: 2, py: 0.75, borderRadius: '99px', bgcolor: 'rgba(37,99,235,0.25)', border: '1px solid rgba(59,130,246,0.3)', mb: 2.5 }}>
+                    <Typography sx={{ color: '#93c5fd', fontWeight: 800, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{sideLabel}</Typography>
+                  </Box>
+                )}
+                <Typography variant="h2" sx={{ fontSize: { lg: 38, xl: 44 }, color: 'white', lineHeight: 1.18, fontWeight: 800, maxWidth: 500, fontFamily: '"Sora", sans-serif' }}>
+                  {sideTitle}
+                </Typography>
+                <Typography sx={{ mt: 2.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.85, fontSize: 14.5, maxWidth: 480 }}>
+                  {sideDescription}
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        )}
 
         {/* ── Right: Form panel ─────────────────── */}
         <Box
@@ -221,20 +208,20 @@ function AuthShell({
             gap: 3,
           }}
         >
-          {/* Desktop brand (no sidebar) */}
+          {/* Desktop brand header (when sidebar is hidden or omitted) */}
           <Stack
             direction="row"
             spacing={1.5}
             alignItems="center"
-            sx={{ display: { xs: 'none', sm: 'flex', lg: 'none' } }}
+            sx={{ display: { xs: 'none', sm: 'flex', lg: sideHighlights.length === 0 ? 'flex' : 'none' } }}
           >
             <Box component="img" src={BRAND_LOGO_PRIMARY} alt="Anusha Trade"
               onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
-              sx={{ width: 40, height: 40, borderRadius: '12px', bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9', p: 0.5, objectFit: 'contain' }}
+              sx={{ width: 44, height: 44, borderRadius: '12px', bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9', p: 0.5, objectFit: 'contain' }}
             />
             <Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 15, lineHeight: 1.1 }}>Anusha Trade</Typography>
-              <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>Investor Portal</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 16, lineHeight: 1.1, fontFamily: '"Sora", sans-serif' }}>Anusha Trade</Typography>
+              <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Executive Wealth Portal</Typography>
             </Box>
           </Stack>
 
