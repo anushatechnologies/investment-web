@@ -106,6 +106,31 @@ function User360Page() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Customer Registration Progress" subtitle="Complete 8-step onboarding checklist tracking.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['1. Mobile OTP', profile.mobileNumber ? 'Completed' : 'Pending', !!profile.mobileNumber],
+            ['2. MPIN Created', profile.mpinCreated || profile.hasMpin ? 'Created' : 'Pending', !!(profile.mpinCreated || profile.hasMpin)],
+            ['3. Profile Details', profile.fullName ? 'Completed' : 'Pending', !!profile.fullName],
+            ['4. PAN Verification', profile.panNumber ? 'Verified' : 'Pending', !!profile.panNumber],
+            ['5. KYC Verification', profile.kycStatus === 'APPROVED' ? 'Verified' : (profile.kycStatus || 'Pending'), profile.kycStatus === 'APPROVED'],
+            ['6. Bank Account', profile.bankAccountNumber ? 'Linked' : 'Pending', !!profile.bankAccountNumber],
+            ['7. Terms & Consent', profile.termsAccepted || profile.investorAgreementAccepted ? 'Accepted' : 'Pending', !!(profile.termsAccepted || profile.investorAgreementAccepted)],
+            ['8. Account Status', profile.accountStatus || 'PENDING', profile.accountStatus === 'ACTIVE'],
+          ].map(([step, statusText, isDone]) => (
+            <div key={step} className={`rounded-xl border p-4 ${isDone ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/[0.04]'}`}>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{step}</p>
+              <div className="mt-2 flex items-center justify-between">
+                <span className={`text-sm font-semibold ${isDone ? 'text-emerald-400' : 'text-slate-300'}`}>{statusText}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${isDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-400'}`}>
+                  {isDone ? '✓' : '…'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
       <SectionCard title="Admin Wallet Adjustment" subtitle="Credit or debit wallet balance with an audit reason.">
         {(adjustmentMessage || adjustmentError) && (
           <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${adjustmentError ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
