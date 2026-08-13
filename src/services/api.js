@@ -1125,6 +1125,22 @@ export function adminCancelInvestment(investmentId, reason) {
   return request(`/api/admin/investments/${investmentId}/cancel`, { method: 'POST', body: { reason }, auth: true });
 }
 
+export function adminGetPayouts() {
+  return request('/api/admin/payouts', { auth: true });
+}
+
+export function adminCalculatePayouts() {
+  return request('/api/admin/payouts/calculate', { method: 'POST', auth: true });
+}
+
+export function adminGetUpcomingMaturities() {
+  return request('/api/admin/maturity/upcoming', { auth: true });
+}
+
+export function adminSettleMaturity(investmentId) {
+  return request(`/api/admin/maturity/${investmentId}/settle`, { method: 'POST', auth: true });
+}
+
 export function adminVerifyReceipt(investmentId, approved, rejectionReason) {
   const body = approved ? { approved } : { approved, rejectionReason };
   return request(`/api/admin/investments/${investmentId}/verify-receipt`, {
