@@ -198,13 +198,13 @@ function LoginPage({ onLogin }) {
 
   return (
     <AuthShell
-      eyebrow="EXECUTIVE PORTAL"
+      eyebrow="INVESTOR PORTAL"
       title="Sign in to your account"
-      subtitle="Enter your email & password, or mobile number & 4-digit MPIN."
-      sideLabel="INSTITUTIONAL GRADE"
-      sideTitle="High-Yield Wealth Management Engine"
-      sideDescription="Institutional-grade security with automated 10.0% monthly interest payouts, verified KYC compliance, and instant wallet settlements."
-      sideHighlights={highlights}
+      subtitle="Use email and password, or mobile number with MPIN."
+      sideLabel="ANUSHA TRADE"
+      sideTitle="Executive Wealth Portal"
+      sideDescription="Secure access to your investment portfolio and monthly payouts."
+      sideHighlights={[]}
       error={error}
       footer={
         <>

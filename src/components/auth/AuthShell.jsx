@@ -193,22 +193,18 @@ function AuthShell({
               </Typography>
             </Box>
 
-            {/* Highlights */}
-            {sideHighlights.length > 0 && (
-              <Stack spacing={1.5}>
-                {sideHighlights.map((item) => (
-                  <Box key={item.title} sx={{ p: 2.25, borderRadius: '20px', bgcolor: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', transition: 'all 0.3s ease', '&:hover': { bgcolor: 'rgba(255,255,255,0.09)', borderColor: 'rgba(59,130,246,0.4)', transform: 'translateY(-2px)' } }}>
-                    <Stack direction="row" spacing={1.75} alignItems="center">
-                      <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '14px', bgcolor: 'rgba(37,99,235,0.3)', color: '#93c5fd', flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.2)' }}>
-                        {item.icon}
-                      </Box>
-                      <Box>
-                        <Typography sx={{ color: 'white', fontWeight: 700, fontSize: 14 }}>{item.title}</Typography>
-                        <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 12.5, mt: 0.25, lineHeight: 1.6 }}>{item.copy}</Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
-                ))}
+            {/* Minimal Metric Pill Strip */}
+            {sideHighlights.length === 0 && (
+              <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mt: 3, gap: 1 }}>
+                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(37,99,235,0.2)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', fontSize: 12, fontWeight: 700 }}>
+                  10.0% Monthly Yield
+                </Box>
+                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.3)', color: '#6ee7b7', fontSize: 12, fontWeight: 700 }}>
+                  6-Month Lock-in
+                </Box>
+                <Box sx={{ px: 2, py: 1, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', fontSize: 12, fontWeight: 700 }}>
+                  Bank-Grade Encryption
+                </Box>
               </Stack>
             )}
           </Stack>
