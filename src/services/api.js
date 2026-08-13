@@ -1113,6 +1113,18 @@ export function adminGetAllInvestments() {
   return request('/api/admin/investments', { auth: true });
 }
 
+export function adminGetInvestmentDetails(investmentId) {
+  return request(`/api/admin/investments/${investmentId}`, { auth: true });
+}
+
+export function adminPauseInvestment(investmentId) {
+  return request(`/api/admin/investments/${investmentId}/pause`, { method: 'POST', auth: true });
+}
+
+export function adminCancelInvestment(investmentId, reason) {
+  return request(`/api/admin/investments/${investmentId}/cancel`, { method: 'POST', body: { reason }, auth: true });
+}
+
 export function adminVerifyReceipt(investmentId, approved, rejectionReason) {
   const body = approved ? { approved } : { approved, rejectionReason };
   return request(`/api/admin/investments/${investmentId}/verify-receipt`, {
