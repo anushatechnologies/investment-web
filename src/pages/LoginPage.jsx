@@ -1,36 +1,143 @@
-import { ArrowRight, BriefcaseBusiness, ShieldCheck, Share2, Loader2 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { loginWithEmail, verifyMpinLogin, saveAuthData } from '../services/api';
-import { BRAND_LOGO_FALLBACK, BRAND_LOGO_PRIMARY } from '../constants/branding';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
+  Smartphone,
+} from 'lucide-react';
+import AuthShell from '../components/auth/AuthShell';
+import { hydrateInvestorSessionState, loginWithEmail, saveAuthData, verifyMpinLogin } from '../services/api';
 import { resolveInvestorRoute } from '../utils/onboardingRouter';
 
 const highlights = [
   {
-    title: 'Investor dashboard',
-    copy: 'Track investments, wallet balance, monthly interest, receipts, and referral activity.',
-    icon: BriefcaseBusiness,
+    title: 'Investor-ready dashboard',
+    copy: 'Track investments, interest payouts, receipts, referrals, and onboarding status in one place.',
+    icon: <BriefcaseBusiness size={18} />,
   },
   {
-    title: 'Admin control center',
-    copy: 'Manage investors, payments, withdrawals, fraud checks, reports, and platform settings.',
-    icon: ShieldCheck,
+    title: 'Secure admin controls',
+    copy: 'Admin users can review KYC, verify payments, process withdrawals, and manage accounts.',
+    icon: <ShieldCheck size={18} />,
   },
   {
-    title: 'Referral and wallet flows',
-    copy: 'Both user and admin roles can monitor referral activity and wallet-related operations.',
-    icon: Share2,
+    title: 'Fast access options',
+    copy: 'Sign in using email & password or use MPIN with your mobile number for repeat access.',
+    icon: <Smartphone size={18} />,
   },
 ];
 
+/* ── Mode toggle pill ─────────────────────── */
+function ModePill({ value, onChange }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const options = [
+    { value: 'password', label: 'Password' },
+    { value: 'mpin', label: 'MPIN' },
+  ];
+  return (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        p: 0.5,
+        borderRadius: '14px',
+        bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(241,245,249,1)',
+        border: '1px solid',
+        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(226,232,240,0.8)',
+        width: '100%',
+      }}
+    >
+      {options.map((opt) => (
+        <Box
+          key={opt.value}
+          component="button"
+          type="button"
+          onClick={() => onChange(opt.value)}
+          sx={{
+            flex: 1,
+            border: 'none',
+            cursor: 'pointer',
+            py: 1,
+            px: 1.5,
+            borderRadius: '11px',
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: '"Manrope", sans-serif',
+            transition: 'all 0.2s ease',
+            bgcolor: value === opt.value
+              ? isDark ? 'rgba(37,99,235,0.9)' : 'white'
+              : 'transparent',
+            color: value === opt.value
+              ? isDark ? 'white' : 'primary.main'
+              : 'text.secondary',
+            boxShadow: value === opt.value
+              ? isDark
+                ? '0 4px 14px rgba(37,99,235,0.35)'
+                : '0 2px 10px rgba(15,23,42,0.1)'
+              : 'none',
+          }}
+        >
+          {opt.label}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 function LoginPage({ onLogin }) {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState('');
+  const location = useLocation();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const routeState = location.state || {};
+
+  const [identifier, setIdentifier] = useState(routeState.prefillIdentifier || '');
   const [password, setPassword] = useState('');
   const [mpin, setMpin] = useState('');
-  const [credentialMode, setCredentialMode] = useState('password');
+  const [showPassword, setShowPassword] = useState(false);
+  const [credentialMode, setCredentialMode] = useState(routeState.prefillMode || 'password');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState(routeState.infoMessage || '');
+
+  useEffect(() => {
+    if (!routeState.prefillIdentifier && !routeState.prefillMode && !routeState.infoMessage) return;
+    setIdentifier(routeState.prefillIdentifier || '');
+    setCredentialMode(routeState.prefillMode || 'password');
+    setInfoMessage(routeState.infoMessage || '');
+  }, [routeState.infoMessage, routeState.prefillIdentifier, routeState.prefillMode]);
+
+  const handleModeChange = (mode) => {
+    setCredentialMode(mode);
+    setError('');
+    if (mode === 'mpin') {
+      if (identifier.includes('@')) {
+        setIdentifier('');
+      } else {
+        setIdentifier(identifier.replace(/\D/g, '').slice(0, 10));
+      }
+    } else {
+      if (/^\d+$/.test(identifier)) {
+        setIdentifier('');
+      }
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -38,193 +145,251 @@ function LoginPage({ onLogin }) {
     setError('');
 
     try {
-      let result;
-      if (credentialMode === 'mpin') {
-        if (mpin.length < 4 || mpin.length > 6) {
-          setError('MPIN must be 4-6 digits.');
-          setLoading(false);
-          return;
-        }
-        result = await verifyMpinLogin(identifier, mpin);
-      } else {
-        result = await loginWithEmail(identifier, password);
+      const normalizedIdentifier = credentialMode === 'mpin'
+        ? identifier.replace(/\D/g, '').slice(0, 10)
+        : identifier.trim();
+
+      if (credentialMode === 'password' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)) {
+        throw new Error('Use your registered email address with password login.');
+      }
+      if (credentialMode === 'mpin' && normalizedIdentifier.length !== 10) {
+        throw new Error('Use your 10-digit mobile number with MPIN login.');
       }
 
-      // Preserve all fields from result to capture phone and other data
-      // Use the full result object for saveAuthData so that phone (mobileNumber/phoneNumber) is stored.
-      // Then ensure email fallback if not provided.
+      const result = credentialMode === 'mpin'
+        ? await verifyMpinLogin(normalizedIdentifier, mpin)
+        : await loginWithEmail(normalizedIdentifier, password);
+
+      let sessionState = { ...result };
+
       saveAuthData({
-        ...result,
-        email: result.email || (identifier.includes('@') ? identifier : ''),
-        mobileNumber: result.mobileNumber || result.phoneNumber || (!identifier.includes('@') ? identifier : ''),
+        ...sessionState,
+        email: result.email || (normalizedIdentifier.includes('@') ? normalizedIdentifier : ''),
+        mobileNumber: result.mobileNumber || result.phoneNumber || (!normalizedIdentifier.includes('@') ? normalizedIdentifier : ''),
       });
 
-      const role = (result.role?.toLowerCase() === 'admin' || result.role?.toLowerCase() === 'super_admin') ? 'admin' : 'user';
+      const needsHydration = !sessionState.kycStatus
+        || sessionState.bankVerified === undefined
+        || sessionState.mpinCreated === undefined
+        || !sessionState.accountStatus
+        || !sessionState.onboardingStatus;
+
+      if (!['admin', 'super_admin'].includes(String(result.role || '').toLowerCase()) && needsHydration) {
+        try {
+          const hydratedState = await hydrateInvestorSessionState();
+          sessionState = { ...sessionState, ...hydratedState };
+          saveAuthData(sessionState);
+        } catch (_) {
+          // Fall back to whatever was returned during login.
+        }
+      }
+
+      const role = ['admin', 'super_admin'].includes(String(result.role || '').toLowerCase())
+        ? 'admin'
+        : 'user';
       onLogin(role);
-      const investorRoute = resolveInvestorRoute(result);
-      navigate(role === 'admin' ? '/admin' : investorRoute, { replace: true });
+      navigate(role === 'admin' ? '/admin' : resolveInvestorRoute(sessionState), { replace: true });
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Invalid credentials. Please try again.');
+      setError(err.message || 'Unable to sign in. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-      <div className="mx-auto grid w-full max-w-7xl overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.12)] lg:grid-cols-[1fr_460px]">
-        <section className="relative overflow-hidden bg-[#07172d] px-8 py-10 text-white sm:px-10 lg:px-12">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.24),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.2),transparent_24%)]" />
-          <div className="relative">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 overflow-hidden items-center justify-center rounded-full bg-white shadow-md">
-                <img
-                  src={BRAND_LOGO_PRIMARY}
-                  alt="Anusha Trade"
-                  className="h-full w-full object-contain p-0.5"
-                  onError={(e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; }}
+    <AuthShell
+      eyebrow="Investor Portal"
+      title="Sign in to your account"
+      subtitle="Use email and password, or use mobile number with MPIN."
+      sideLabel="Secure Access"
+      sideTitle="A cleaner investor login with clear paths for users and admins."
+      sideDescription="Sign in, finish pending onboarding, and continue directly into your portfolio or review actions."
+      sideHighlights={highlights}
+      error={error}
+      footer={
+        <>
+          New investor?{' '}
+          <Link to="/signup" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>
+            Create your account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <Stack spacing={2.5}>
+          {infoMessage ? (
+            <Box
+              sx={{
+                borderRadius: '14px',
+                px: 2,
+                py: 1.5,
+                bgcolor: isDark ? 'rgba(37,99,235,0.12)' : alpha(theme.palette.primary.main, 0.08),
+                color: 'primary.main',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              {infoMessage}
+            </Box>
+          ) : null}
+
+          {/* Identifier */}
+          <TextField
+            label={credentialMode === 'mpin' ? 'Mobile number' : 'Email address'}
+            placeholder={credentialMode === 'mpin' ? '10-digit mobile number' : 'Registered email address'}
+            value={identifier}
+            onChange={(e) => setIdentifier(credentialMode === 'mpin' ? e.target.value.replace(/\D/g, '').slice(0, 10) : e.target.value)}
+            required
+            fullWidth
+            inputProps={{
+              inputMode: credentialMode === 'mpin' ? 'numeric' : 'email',
+              maxLength: credentialMode === 'mpin' ? 10 : undefined,
+              autoComplete: 'username',
+            }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
+          />
+
+          {/* Mode toggle */}
+          <ModePill value={credentialMode} onChange={handleModeChange} />
+
+          {/* Credential field */}
+          {credentialMode === 'password' ? (
+            <TextField
+              label="Password"
+              placeholder="Enter your password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              fullWidth
+              autoComplete="current-password"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <KeyRound size={16} style={{ color: theme.palette.text.secondary }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '14px' } }}
+            />
+          ) : (
+            <Box sx={{ position: 'relative', width: '100%', py: 1 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 1.5, textAlign: 'center' }}>
+                Enter 4-digit MPIN
+              </Typography>
+              <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                <Stack direction="row" spacing={1.5} justifyContent="center" sx={{ py: 1 }}>
+                  {Array.from({ length: 4 }).map((_, i) => {
+                    const isActive = mpin.length === i;
+                    return (
+                      <Box
+                        key={i}
+                        sx={{
+                          width: 48,
+                          height: 54,
+                          borderRadius: '14px',
+                          border: '2px solid',
+                          borderColor: isActive
+                            ? 'primary.main'
+                            : mpin.length > i
+                              ? 'primary.main'
+                              : isDark ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: mpin.length > i
+                            ? isDark ? alpha('#2563eb', 0.15) : alpha('#2563eb', 0.06)
+                            : 'transparent',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isActive ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}` : 'none',
+                        }}
+                      >
+                        {mpin[i] ? (
+                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }} />
+                        ) : null}
+                      </Box>
+                    );
+                  })}
+                </Stack>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={mpin}
+                  onChange={(e) => setMpin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  autoFocus
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    zIndex: 10,
+                    cursor: 'pointer',
+                    border: 'none',
+                    outline: 'none',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
                 />
-              </div>
-              <div>
-                <p className="font-heading text-2xl font-semibold whitespace-nowrap">Anusha Trade</p>
-              </div>
-            </div>
-
-            <div className="mt-12 max-w-2xl">
-              <p className="inline-flex rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white">
-                User & Admin Access
-              </p>
-              <h1 className="mt-5 font-heading text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                One portal for investor dashboards and admin operations.
-              </h1>
-              <p className="mt-5 text-base leading-7 text-slate-300">
-                Sign in with your mobile number or email to access your dashboard.
-                New users can sign up with their mobile number via OTP verification.
-              </p>
-            </div>
-
-            <div className="mt-10 grid gap-4">
-              {highlights.map(({ title, copy, icon: Icon }) => (
-                <div
-                  key={title}
-                  className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/20 text-blue-100 ring-1 ring-white/10">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2 className="font-heading text-lg font-semibold text-white">{title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-300">{copy}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-white px-8 py-10 sm:px-10">
-          <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">
-              Welcome back
-            </p>
-            <h2 className="mt-3 font-heading text-3xl font-semibold text-slate-900">
-              Sign In
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Enter your credentials to access your account.
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
+              </Box>
+            </Box>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Mobile Number or Email</label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                className="input-shell"
-                placeholder="Enter mobile number or email"
-              />
-            </div>
+          {/* Forgot links */}
+          <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={1}>
+            <Typography
+              component={Link}
+              to="/forgot-password"
+              sx={{ fontSize: 13, color: 'primary.main', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+            >
+              Forgot password?
+            </Typography>
+            <Typography
+              component={Link}
+              to="/forgot-mpin"
+              sx={{ fontSize: 13, color: 'primary.main', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+            >
+              Forgot MPIN?
+            </Typography>
+          </Stack>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-slate-700">
-                  {credentialMode === 'password' ? 'Password' : 'MPIN'}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => { setCredentialMode((m) => m === 'password' ? 'mpin' : 'password'); setError(''); }}
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500"
-                >
-                  {credentialMode === 'password' ? 'Use MPIN instead' : 'Use Password instead'}
-                </button>
-              </div>
-              {credentialMode === 'password' ? (
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="input-shell"
-                  placeholder="Enter password"
-                />
-              ) : (
-                <input
-                  type="password"
-                  required
-                  maxLength={6}
-                  value={mpin}
-                  onChange={(event) => setMpin(event.target.value.replace(/\D/g, ''))}
-                  className="input-shell text-center text-xl tracking-[0.5em]"
-                  placeholder="* * * *"
-                />
-              )}
-            </div>
+          {/* Submit */}
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={loading}
+            endIcon={loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+            sx={{
+              borderRadius: '14px',
+              py: 1.5,
+              fontSize: 15,
+              fontWeight: 700,
+              boxShadow: '0 8px 24px rgba(37,99,235,0.28)',
+              '&:hover': { boxShadow: '0 12px 30px rgba(37,99,235,0.35)', transform: 'translateY(-1px)' },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {loading ? 'Signing in...' : 'Continue to account'}
+          </Button>
 
-            <div className="flex items-center justify-between text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-600 hover:underline">
-                Forgot Password?
-              </Link>
-              <Link to="/forgot-mpin" className="font-medium text-blue-600 hover:underline">
-                Forgot MPIN?
-              </Link>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-              <div className="relative flex justify-center text-sm"><span className="bg-white px-4 text-slate-400">or</span></div>
-            </div>
-
-            <Link to="/signup" className="btn-secondary w-full text-center">
-              <span>Sign up with Mobile OTP</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </form>
-        </section>
-      </div>
-    </div>
+        </Stack>
+      </form>
+    </AuthShell>
   );
 }
 

@@ -1,23 +1,45 @@
 import { useDeferredValue, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
+import SearchIcon from '@mui/icons-material/Search';
+import {
+  Box,
+  Button,
+  Card,
+  FormControl,
+  InputAdornment,
+  MenuItem,
+  Pagination,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
 
 function ActionButton({ action }) {
   const Icon = action.icon;
-  const variants = {
-    primary: 'btn-primary',
-    secondary: 'btn-secondary',
-    danger: 'btn-danger',
+  const colorMap = {
+    primary: 'primary',
+    secondary: 'inherit',
+    danger: 'error',
   };
 
   return (
-    <button
+    <Button
       type="button"
+      variant={action.variant === 'primary' ? 'contained' : 'outlined'}
+      color={colorMap[action.variant] ?? 'inherit'}
       onClick={action.onClick}
-      className={variants[action.variant] ?? variants.secondary}
+      startIcon={Icon ? <Icon className="h-4 w-4" /> : null}
+      sx={{ borderRadius: '16px' }}
     >
-      {Icon && <Icon className="h-4 w-4" />}
-      <span>{action.label}</span>
-    </button>
+      {action.label}
+    </Button>
   );
 }
 
@@ -33,6 +55,9 @@ function DataTable({
   actions = [],
   emptyMessage = 'No matching records found.',
   itemsPerPage = 20,
+  enableCsvExport = false,
+  exportFileName,
+  exportButtonLabel = 'Export CSV',
 }) {
   const [query, setQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -49,7 +74,7 @@ function DataTable({
       );
 
     const matchesFilter =
-      !filterKey || selectedFilter === 'All' || String(row[filterKey]) === selectedFilter;
+      !filterKey || selectedFilter === 'All' || String(row[filterKey]).toLowerCase() === selectedFilter.toLowerCase();
 
     return matchesSearch && matchesFilter;
   });
@@ -57,138 +82,276 @@ function DataTable({
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / itemsPerPage));
   const paginatedRows = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const exportColumns = columns.filter(
+    (column) => !column.excludeFromExport && column.key !== 'action' && column.key !== 'actions',
+  );
+
+  const resolveExportValue = (column, row) => {
+    const value = column.exportValue ? column.exportValue(row) : row[column.key];
+
+    if (value == null) return '';
+    if (Array.isArray(value)) return value.join('; ');
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
+  const toCsvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+  const handleExportCsv = () => {
+    const headers = exportColumns.map((column) => column.label);
+    const rows = filteredRows.map((row) => exportColumns.map((column) => resolveExportValue(column, row)));
+    const csv = [headers, ...rows].map((row) => row.map(toCsvCell).join(',')).join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeTitle = (exportFileName || title || 'table-export')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    link.href = url;
+    link.download = `${safeTitle || 'table-export'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="glass-card p-5 sm:p-6">
-      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h3 className="theme-panel-title font-heading text-xl font-semibold text-slate-900">
+    <Card className="glass-card investor-data-table" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+      <Stack
+        direction={{ xs: 'column', lg: 'row' }}
+        spacing={{ xs: 1.5, sm: 2 }}
+        alignItems={{ xs: 'flex-start', lg: 'flex-end' }}
+        justifyContent="space-between"
+        sx={{ mb: { xs: 2, sm: 3 }, minWidth: 0 }}
+      >
+        <div className="min-w-0">
+          <Typography variant="h5" className="theme-panel-title" sx={{ fontSize: { xs: 18, sm: 22 }, lineHeight: 1.2, overflowWrap: 'anywhere' }}>
             {title}
-          </h3>
+          </Typography>
           {description && (
-            <p className="theme-panel-subtitle mt-2 text-sm text-slate-500">{description}</p>
+            <Typography variant="body2" className="theme-panel-subtitle" sx={{ mt: 1, lineHeight: 1.6 }}>
+              {description}
+            </Typography>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ width: { xs: '100%', lg: 'auto' } }}>
           {filterKey && filterOptions.length > 0 && (
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
-                <ChevronDown className="h-4 w-4 rotate-90" />
-              </span>
-              <select
+            <FormControl sx={{ minWidth: { xs: '100%', sm: 170 } }}>
+              <Select
                 value={selectedFilter}
-                onChange={(event) => { setSelectedFilter(event.target.value); setCurrentPage(1); }}
-                className="input-shell min-w-[160px] appearance-none pl-11 pr-10"
+                onChange={(event) => {
+                  setSelectedFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                size="small"
               >
-                <option value="All">All</option>
+                <MenuItem value="All">All</MenuItem>
                 {filterOptions.map((option) => (
-                  <option key={option} value={option}>
+                  <MenuItem key={option} value={option}>
                     {option}
-                  </option>
+                  </MenuItem>
                 ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </div>
+              </Select>
+            </FormControl>
+          )}
+          {enableCsvExport && (
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={handleExportCsv}
+              startIcon={<DownloadRoundedIcon fontSize="small" />}
+              sx={{ borderRadius: '16px' }}
+            >
+              {exportButtonLabel}
+            </Button>
           )}
           {actions.map((action) => (
             <ActionButton key={action.label} action={action} />
           ))}
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
-      <div className="mb-5 max-w-xl">
-        <label className="relative block">
-          <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            value={query}
-            onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }}
-            className="input-shell pl-11"
-            placeholder={searchPlaceholder}
-          />
-        </label>
-      </div>
+      <Box sx={{ mb: { xs: 2, sm: 3 }, maxWidth: { xs: '100%', sm: 460 } }}>
+        <TextField
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setCurrentPage(1);
+          }}
+          fullWidth
+          placeholder={searchPlaceholder}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '24px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(248, 250, 252, 0.6)' : 'rgba(15, 23, 42, 0.4)',
+              '&:hover': {
+                backgroundColor: (theme) => theme.palette.mode === 'light' ? '#ffffff' : '#1e293b',
+              },
+              '&.Mui-focused': {
+                backgroundColor: (theme) => theme.palette.mode === 'light' ? '#ffffff' : '#0f172a',
+                boxShadow: (theme) => theme.palette.mode === 'light' ? '0 8px 24px -4px rgba(15,23,42,0.08)' : '0 8px 24px -4px rgba(0,0,0,0.4)',
+              }
+            }
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </Box>
 
-      <div className="table-wrap">
-        <div className="table-scroll">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                {columns.map((column) => (
-                  <th key={column.key} className="table-header-cell">
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedRows.length > 0 ? (
-                paginatedRows.map((row) => (
-                  <tr key={row.id ?? row.name} className="hover:bg-slate-50/80">
-                    {columns.map((column) => (
-                      <td key={column.key} className="table-cell">
-                        {column.render ? column.render(row) : row[column.key]}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-5 py-12 text-center text-sm text-slate-500"
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="theme-panel-subtitle mt-5 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          Showing {paginatedRows.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredRows.length)} of {filteredRows.length} entries
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="h-10 px-3 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-semibold transition admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300"
-          >
-            Prev
-          </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              type="button"
-              onClick={() => setCurrentPage(page)}
-              className={`h-10 w-10 rounded-2xl border text-sm font-semibold transition ${
-                page === currentPage
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300'
-              }`}
+      <Box className="mobile-card-list" sx={{ display: { xs: 'grid', md: 'none' }, gap: 1.25 }}>
+        {paginatedRows.length > 0 ? (
+          paginatedRows.map((row) => (
+            <Box
+              key={row.id ?? row.name}
+              sx={{
+                border: '1px solid',
+                borderColor: (theme) =>
+                  theme.palette.mode === 'light'
+                    ? 'rgba(226,232,240,0.9)'
+                    : 'rgba(255,255,255,0.07)',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'light'
+                    ? 'rgba(248,250,252,0.95)'
+                    : 'rgba(15,23,42,0.65)',
+                borderRadius: '18px',
+                overflow: 'hidden',
+              }}
             >
-              {page}
-            </button>
-          ))}
+              {columns.slice(0, 5).map((column, colIdx) => (
+                <Stack
+                  key={column.key}
+                  direction="row"
+                  spacing={1.25}
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                  sx={{
+                    px: 2,
+                    py: 1.25,
+                    borderBottom: colIdx < Math.min(4, columns.length - 1) ? '1px solid' : 'none',
+                    borderColor: (theme) =>
+                      theme.palette.mode === 'light'
+                        ? 'rgba(226,232,240,0.6)'
+                        : 'rgba(255,255,255,0.05)',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: (theme) => theme.palette.mode === 'light' ? '#475569' : '#cbd5e1',
+                      fontWeight: 700,
+                      fontSize: 10,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      minWidth: 90,
+                      pt: 0.25,
+                    }}
+                  >
+                    {column.label}
+                  </Typography>
+                  <Box
+                    sx={{
+                      textAlign: 'right',
+                      minWidth: 0,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      overflowWrap: 'anywhere',
+                      color: 'text.primary',
+                    }}
+                  >
+                    {column.render ? column.render(row) : row[column.key]}
+                  </Box>
+                </Stack>
+              ))}
+            </Box>
+          ))
+        ) : (
+          <Box sx={{ py: 8, textAlign: 'center', color: 'text.secondary' }}>
+            <Box sx={{ mb: 2, display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: (theme) => theme.palette.mode === 'light' ? '#f1f5f9' : '#1e293b' }}>
+              <SearchIcon sx={{ fontSize: 32, opacity: 0.5 }} />
+            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 14 }}>{emptyMessage}</Typography>
+          </Box>
+        )}
+      </Box>
 
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="h-10 px-3 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-semibold transition admin-theme:border-white/10 admin-theme:bg-slate-900 admin-theme:text-slate-300"
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
+      <TableContainer className="table-wrap" sx={{ display: { xs: 'none', md: 'block' }, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <Table className="min-w-full" sx={{ minWidth: { xs: 720, md: '100%' } }}>
+          <TableHead>
+            <TableRow>
+              {columns.map((column) => (
+                <TableCell key={column.key} className="table-header-cell">
+                  {column.label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {paginatedRows.length > 0 ? (
+              paginatedRows.map((row) => (
+                <TableRow
+                  key={row.id ?? row.name}
+                  hover
+                  sx={{
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(99, 102, 241, 0.04) !important' : 'rgba(99, 102, 241, 0.1) !important',
+                    },
+                    '&:last-child td': { borderBottom: 'none' },
+                  }}
+                >
+                  {columns.map((column) => (
+                    <TableCell key={column.key} className="table-cell" sx={{ color: 'text.primary', verticalAlign: 'top' }}>
+                      {column.render ? column.render(row) : row[column.key]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 10, color: 'text.secondary' }}>
+                  <Box sx={{ display: 'inline-flex', p: 2, borderRadius: '50%', bgcolor: (theme) => theme.palette.mode === 'light' ? '#f1f5f9' : '#1e293b', mb: 2 }}>
+                    <SearchIcon sx={{ fontSize: 32, opacity: 0.5 }} />
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500, fontSize: 14 }}>{emptyMessage}</Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        sx={{ mt: 3 }}
+      >
+        <Typography variant="body2" className="theme-panel-subtitle">
+          Showing {paginatedRows.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredRows.length)} of {filteredRows.length} entries
+        </Typography>
+        <Pagination
+          page={currentPage}
+          count={totalPages}
+          onChange={(_, page) => setCurrentPage(page)}
+          color="primary"
+          shape="rounded"
+          size="small"
+        />
+      </Stack>
+    </Card>
   );
 }
 

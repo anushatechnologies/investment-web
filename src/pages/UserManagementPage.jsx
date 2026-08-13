@@ -1,15 +1,17 @@
-import { Check, Pencil, UserCog, UserPlus, Users, X, FileImage, FileText, UploadCloud, AlertCircle, Eye } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Check, Pencil, UserCog, UserPlus, Users, X, FileImage, FileText, UploadCloud, AlertCircle, Eye, ShieldCheck, Clock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
-import { userManagementStats } from '../data/adminData';
 import {
   adminGetUsers,
   adminUpdateUser,
   adminGetKycDocuments,
+  adminGetUserKycDocuments,
   adminApproveKyc,
   adminRejectKyc,
+  adminRejectKycDocuments,
   adminGetUserBankDetails,
   buildUrl,
   adminGetPendingKyc,
@@ -17,8 +19,15 @@ import {
   adminGetAuditLogs,
 } from '../services/api';
 
-const statIcons = [Users, Users, UserCog, UserCog];
-const statTones = ['blue', 'emerald', 'violet', 'amber'];
+const statIcons = [Users, ShieldCheck, Clock, UserCog];
+const statTones = ['blue', 'emerald', 'amber', 'violet'];
+const DOC_REUPLOAD_FIELDS = [
+  { key: 'panCard', label: 'PAN Card', statusKey: 'panCardStatus', reasonKey: 'panCardRejectionReason' },
+  { key: 'aadhaarFront', label: 'Aadhaar Front', statusKey: 'aadhaarFrontStatus', reasonKey: 'aadhaarFrontRejectionReason' },
+  { key: 'aadhaarBack', label: 'Aadhaar Back', statusKey: 'aadhaarBackStatus', reasonKey: 'aadhaarBackRejectionReason' },
+  { key: 'selfie', label: 'Selfie Photo', statusKey: 'selfieStatus', reasonKey: 'selfieRejectionReason' },
+  { key: 'bankProof', label: 'Bank Proof', statusKey: 'bankProofStatus', reasonKey: 'bankProofRejectionReason' },
+];
 
 // LocalStorage caching helpers for KYC IDs to resolve the archived document limitation
 const saveKycIdToCache = (userId, kycId) => {
@@ -44,6 +53,7 @@ const getKycIdFromCache = (userId) => {
 };
 
 function UserManagementPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activationModal, setActivationModal] = useState({ isOpen: false, row: null, error: '' });
@@ -67,6 +77,13 @@ function UserManagementPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [docReuploadFlags, setDocReuploadFlags] = useState({
+    panCard: false,
+    aadhaarFront: false,
+    aadhaarBack: false,
+    selfie: false,
+    bankProof: false,
+  });
 
   const fetchAllData = async () => {
     setLoadingKyc(true);
@@ -279,13 +296,18 @@ function UserManagementPage() {
       let docs = null;
       if (kycStatus && kycStatus !== 'NOT_SUBMITTED') {
         try {
-          docs = await adminGetKycDocuments(kycId);
+          docs = await adminGetUserKycDocuments(userId);
         } catch (docErr) {
-          console.warn(`Could not load KYC documents for user ${userId}:`, docErr);
-          if (docErr.message?.includes('not found') || docErr.status === 404) {
-            docs = { empty: true };
-          } else {
-            throw docErr;
+          console.warn(`Could not load KYC documents by user ${userId}:`, docErr);
+          try {
+            docs = await adminGetKycDocuments(kycId);
+          } catch (fallbackErr) {
+            console.warn(`Could not load KYC documents by KYC ID ${kycId}:`, fallbackErr);
+            if (fallbackErr.message?.includes('not found') || fallbackErr.status === 404) {
+              docs = { empty: true };
+            } else {
+              throw fallbackErr;
+            }
           }
         }
       } else {
@@ -321,6 +343,13 @@ function UserManagementPage() {
     setActionError('');
     setAdminNotes('');
     setRejectReason('');
+    setDocReuploadFlags({
+      panCard: false,
+      aadhaarFront: false,
+      aadhaarBack: false,
+      selfie: false,
+      bankProof: false,
+    });
     
     try {
       const kycId = row.id || row.kycId;
@@ -368,18 +397,30 @@ function UserManagementPage() {
     setActionError('');
     setAdminNotes('');
     setRejectReason('');
+    setDocReuploadFlags({
+      panCard: false,
+      aadhaarFront: false,
+      aadhaarBack: false,
+      selfie: false,
+      bankProof: false,
+    });
     
     try {
       let docs = null;
       if (kycStatus && kycStatus !== 'NOT_SUBMITTED') {
         try {
-          docs = await adminGetKycDocuments(kycId);
+          docs = await adminGetUserKycDocuments(userId);
         } catch (docErr) {
-          console.warn(`Could not load KYC documents for user ${userId} (kycId: ${kycId}):`, docErr);
-          if (docErr.message?.includes('not found') || docErr.status === 404) {
-            docs = { empty: true };
-          } else {
-            throw docErr;
+          console.warn(`Could not load KYC documents by user ${userId}:`, docErr);
+          try {
+            docs = await adminGetKycDocuments(kycId);
+          } catch (fallbackErr) {
+            console.warn(`Could not load KYC documents by KYC ID ${kycId}:`, fallbackErr);
+            if (fallbackErr.message?.includes('not found') || fallbackErr.status === 404) {
+              docs = { empty: true };
+            } else {
+              throw fallbackErr;
+            }
           }
         }
       } else {
@@ -436,6 +477,33 @@ function UserManagementPage() {
     }
   };
 
+  const handleRequestReupload = async () => {
+    if (!viewKycDetails) return;
+    if (!rejectReason.trim()) {
+      setActionError('Reupload reason is required.');
+      return;
+    }
+    const hasSelectedDoc = Object.values(docReuploadFlags).some(Boolean);
+    if (!hasSelectedDoc) {
+      setActionError('Select at least one document for reupload.');
+      return;
+    }
+    const kycId = viewKycDetails.id || viewKycDetails.kycId;
+    const userId = viewKycDetails.userId;
+    setActionLoading(true);
+    setActionError('');
+    try {
+      await adminRejectKycDocuments(kycId, rejectReason, adminNotes, docReuploadFlags);
+      saveKycIdToCache(userId, kycId);
+      setViewKycDetails(null);
+      fetchAllData();
+    } catch (err) {
+      setActionError(err.message || 'Document reupload request failed.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleActivateAccountPrompt = (row) => {
     setActivationModal({ isOpen: true, row, error: '' });
   };
@@ -467,13 +535,13 @@ function UserManagementPage() {
   };
 
   const accountApprovalColumns = [
-    { key: 'id', label: 'ID', render: (row) => row.id || row.userId || 'N/A' },
-    { key: 'name', label: 'Name', render: (row) => row.name || row.fullName || (row.firstName ? `${row.firstName} ${row.lastName || ''}`.trim() : 'N/A') },
-    { key: 'email', label: 'Email', render: (row) => row.email || 'N/A' },
+    { key: 'id', label: 'ID', exportValue: (row) => row.id || row.userId || 'N/A', render: (row) => row.id || row.userId || 'N/A' },
+    { key: 'name', label: 'Name', exportValue: (row) => row.name || row.fullName || (row.firstName ? `${row.firstName} ${row.lastName || ''}`.trim() : 'N/A'), render: (row) => row.name || row.fullName || (row.firstName ? `${row.firstName} ${row.lastName || ''}`.trim() : 'N/A') },
+    { key: 'email', label: 'Email', exportValue: (row) => row.email || 'N/A', render: (row) => row.email || 'N/A' },
     { key: 'bank', label: 'Bank Linked?', render: (row) => {
         const hasBank = row.bankVerified || row.bankAccountNumber || row.accountNumber || row.bankDetails?.accountNumber || row.bankDetails?.bankAccountNumber;
         return hasBank ? <span className="text-emerald-500 font-medium">Yes</span> : <span className="text-amber-500 font-medium">No</span>;
-    }},
+    }, exportValue: (row) => (row.bankVerified || row.bankAccountNumber || row.accountNumber || row.bankDetails?.accountNumber || row.bankDetails?.bankAccountNumber ? 'Yes' : 'No')},
     {
       key: 'action',
       label: 'Action',
@@ -484,7 +552,7 @@ function UserManagementPage() {
             <button
               type="button"
               onClick={() => handleEditClick(row)}
-              className="text-slate-400 transition hover:text-blue-400 font-medium text-sm flex items-center gap-1 bg-white/5 hover:bg-blue-500/10 px-3 py-1.5 rounded-lg border border-white/10 hover:border-blue-500/20"
+              className="text-slate-600 dark:text-slate-300 transition hover:text-blue-500 dark:hover:text-blue-400 font-medium text-sm flex items-center gap-1.5 bg-slate-50/50 dark:bg-white/5 hover:bg-blue-500/10 px-3 py-1.5 rounded-lg border border-slate-200/60 dark:border-white/10 hover:border-blue-500/20"
               title="View full account details"
             >
               <Eye className="h-4 w-4" />
@@ -494,7 +562,7 @@ function UserManagementPage() {
               type="button"
               onClick={() => handleActivateAccountPrompt(row)}
               disabled={actionLoading || !hasBank}
-              className="text-emerald-500 transition hover:text-emerald-400 disabled:opacity-50 disabled:hover:text-emerald-500 font-medium text-sm flex items-center gap-1 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20"
+              className="text-emerald-600 dark:text-emerald-400 transition hover:text-emerald-500 dark:hover:text-emerald-300 disabled:opacity-50 font-medium text-sm flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20"
               title={!hasBank ? "Cannot activate until user links their bank" : "Click to activate account"}
             >
               <Check className="h-4 w-4" />
@@ -507,10 +575,12 @@ function UserManagementPage() {
   ];
 
   const columns = [
-    { key: 'id', label: 'ID', render: (row) => row.id || row.userId || 'N/A' },
+    { key: 'id', label: 'ID', exportValue: (row) => row.id || row.userId || 'N/A', render: (row) => row.id || row.userId || 'N/A' },
     {
       key: 'name',
       label: 'Name',
+      exportValue: (row) =>
+        row.fullName || row.name || row.userName || (row.firstName ? `${row.firstName} ${row.lastName || ''}`.trim() : null) || 'N/A',
       render: (row) => {
         const displayName =
           row.fullName ||
@@ -523,7 +593,7 @@ function UserManagementPage() {
           <button
             type="button"
             onClick={() => handleViewUserKyc(row)}
-            className="text-left font-medium text-blue-300 transition hover:text-blue-200 hover:underline"
+            className="text-left font-medium text-blue-600 dark:text-blue-300 transition hover:text-blue-500 dark:hover:text-blue-200 hover:underline"
             title="View user profile and uploaded documents"
           >
             {displayName}
@@ -532,10 +602,11 @@ function UserManagementPage() {
       },
     },
     { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role', render: (row) => row.role || row.userRole || 'User' },
+    { key: 'role', label: 'Role', exportValue: (row) => row.role || row.userRole || 'User', render: (row) => row.role || row.userRole || 'User' },
     {
       key: 'status',
       label: 'Account Status',
+      exportValue: (row) => row.status || row.userStatus || row.accountStatus || 'N/A',
       render: (row) => {
         // Strictly read the string from the backend without modifying it
         const statusStr = row.status || row.userStatus || row.accountStatus;
@@ -545,6 +616,7 @@ function UserManagementPage() {
     {
       key: 'kycStatus',
       label: 'KYC Status',
+      exportValue: (row) => row.kycStatus || 'NOT SUBMITTED',
       render: (row) => {
         const kycStr = row.kycStatus || 'NOT SUBMITTED';
         return <StatusBadge label={kycStr} />;
@@ -553,6 +625,7 @@ function UserManagementPage() {
     { 
       key: 'joinDate', 
       label: 'Join Date', 
+      exportValue: (row) => row.joinDate || row.createdAt || row.createdDate || row.registrationDate || 'N/A',
       render: (row) => {
         const dateStr = row.joinDate || row.createdAt || row.createdDate || row.registrationDate;
         if (!dateStr) return 'N/A';
@@ -563,32 +636,48 @@ function UserManagementPage() {
       key: 'action',
       label: 'Action',
       render: (row) => (
-        <button
-          type="button"
-          onClick={() => handleEditClick(row)}
-          className="text-slate-400 transition hover:text-blue-500"
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/admin/users/${row.id || row.userId}`)}
+            className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-600 dark:text-blue-300 hover:bg-blue-500/20 transition"
+          >
+            360°
+          </button>
+          <button
+            type="button"
+            onClick={() => handleEditClick(row)}
+            className="rounded-lg border border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] p-1.5 text-slate-500 dark:text-slate-300 transition hover:text-blue-500 hover:border-blue-500/20 hover:bg-blue-500/10"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        </div>
       ),
     },
   ];
 
   const kycColumns = [
-    { key: 'id', label: 'KYC ID', render: (row) => row.id || row.kycId || 'N/A' },
+    { key: 'id', label: 'KYC ID', exportValue: (row) => row.id || row.kycId || 'N/A', render: (row) => row.id || row.kycId || 'N/A' },
     { key: 'userId', label: 'User ID' },
-    { key: 'fullName', label: 'User Name', render: (row) => {
+    { key: 'fullName', label: 'User Name', exportValue: (row) => {
+        const u = users.find(u => String(u.id) === String(row.userId) || String(u.userId) === String(row.userId));
+        return row.fullName || row.userName || row.name || u?.fullName || u?.name || (u?.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : null) || row.userId;
+    }, render: (row) => {
         const u = users.find(u => String(u.id) === String(row.userId) || String(u.userId) === String(row.userId));
         const name = row.fullName || row.userName || row.name || u?.fullName || u?.name || (u?.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : null);
         return name || row.userId;
     }},
-    { key: 'email', label: 'Email', render: (row) => {
+    { key: 'email', label: 'Email', exportValue: (row) => {
+        const u = users.find(u => String(u.id) === String(row.userId) || String(u.userId) === String(row.userId));
+        return row.email || u?.email || 'N/A';
+    }, render: (row) => {
         const u = users.find(u => String(u.id) === String(row.userId) || String(u.userId) === String(row.userId));
         return row.email || u?.email || 'N/A';
     }},
     {
       key: 'status',
       label: 'Status',
+      exportValue: (row) => row.status || 'PENDING',
       render: (row) => <StatusBadge label={row.status || 'PENDING'} />,
     },
     {
@@ -598,7 +687,7 @@ function UserManagementPage() {
         <button
           type="button"
           onClick={() => handleViewKycClick(row)}
-          className="rounded-xl bg-blue-500 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600 transition"
+          className="rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-blue-500/15 hover:shadow-blue-500/25 transition-all duration-200"
         >
           Review
         </button>
@@ -606,12 +695,24 @@ function UserManagementPage() {
     },
   ];
 
-  const renderDoc = (title, pathOrUrl) => {
+  const renderDoc = (title, pathOrUrl, options = {}) => {
+    const { status, reason, selectable = false, selected = false, onToggle } = options;
     if (!pathOrUrl) {
       return (
-        <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">
-          <AlertCircle className="h-6 w-6 text-slate-500 mb-2" />
-          <span className="text-sm text-slate-500">No {title} provided</span>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
+            {status ? (
+              <span className="rounded-full border border-slate-200/60 dark:border-white/10 bg-slate-100/60 dark:bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+                {status}
+              </span>
+            ) : null}
+          </div>
+          {reason ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-300">{reason}</div> : null}
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-6">
+            <AlertCircle className="h-6 w-6 text-slate-400 dark:text-slate-500 mb-2" />
+            <span className="text-sm text-slate-500 dark:text-slate-400">No {title} provided</span>
+          </div>
         </div>
       );
     }
@@ -627,22 +728,36 @@ function UserManagementPage() {
     const isPdf = String(pathOrUrl).toLowerCase().endsWith('.pdf') || String(pathOrUrl).includes('.pdf?');
     
     return (
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-slate-300">{title}</p>
-        <a href={fullUrl} target="_blank" rel="noreferrer" className="block relative group overflow-hidden rounded-xl border border-white/10 aspect-[4/3] bg-black/40">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
+          {status ? (
+            <span className="rounded-full border border-slate-200/60 dark:border-white/10 bg-slate-100/60 dark:bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+              {status}
+            </span>
+          ) : null}
+        </div>
+        {reason ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-300">{reason}</div> : null}
+        {selectable ? (
+          <label className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${selected ? 'border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-200' : 'border-slate-200/60 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.03] text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-white/20'}`}>
+            <input type="checkbox" checked={selected} onChange={onToggle} className="h-4 w-4 accent-amber-400" />
+            Mark this document for reupload
+          </label>
+        ) : null}
+        <a href={fullUrl} target="_blank" rel="noreferrer" className="group relative block overflow-hidden rounded-2xl border border-slate-200/60 dark:border-white/10 bg-slate-100 dark:bg-slate-950/80 min-h-[220px]">
           {isPdf ? (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-slate-900/60 hover:bg-slate-900/40 transition">
-              <FileText className="h-10 w-10 text-rose-500 mb-2" />
-              <span className="text-xs text-slate-300 text-center font-medium">PDF Document</span>
-              <span className="text-[10px] text-slate-500 truncate max-w-full mt-1 px-2">
+            <div className="flex h-full min-h-[220px] w-full flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/60 p-6 transition hover:bg-slate-100 dark:hover:bg-slate-900/40">
+              <FileText className="mb-3 h-12 w-12 text-rose-500" />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200 text-center">PDF Document</span>
+              <span className="mt-2 max-w-full truncate px-2 text-xs text-slate-500 dark:text-slate-400">
                 {pathOrUrl.split('/').pop().split('\\').pop()}
               </span>
             </div>
           ) : (
-            <img src={fullUrl} alt={title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-300" />
+            <img src={fullUrl} alt={title} className="h-full min-h-[220px] w-full object-contain bg-slate-50 dark:bg-slate-950/70 p-3 opacity-95 transition duration-300 group-hover:opacity-100" />
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition duration-300">
-            <span className="text-white text-sm font-medium px-3 py-1 bg-blue-500/80 rounded-full flex items-center gap-2">
+            <span className="text-white text-sm font-medium px-3 py-1.5 bg-blue-500/90 rounded-full flex items-center gap-2 shadow-lg">
               <Eye className="h-4 w-4" /> Open Full
             </span>
           </div>
@@ -650,6 +765,23 @@ function UserManagementPage() {
       </div>
     );
   };
+
+  const liveStats = useMemo(() => {
+    const totalUsers = users.length;
+    const activeUsers = users.filter(u => String(u.status || u.userStatus || u.accountStatus || '').toUpperCase() === 'ACTIVE').length;
+    const pendingKyc = pendingKycList.length;
+    const pendingActivation = users.filter(u => {
+      const isAccountPending = String(u.status || u.userStatus || u.accountStatus || '').toUpperCase() === 'PENDING';
+      const isKycApproved = String(u.kycStatus || '').toUpperCase() === 'APPROVED';
+      return isAccountPending && isKycApproved;
+    }).length;
+    return [
+      { title: 'Total Users', value: totalUsers, note: 'registered accounts across all roles' },
+      { title: 'Active Accounts', value: activeUsers, note: 'fully activated and operational' },
+      { title: 'Pending KYC', value: pendingKyc, note: 'awaiting document review' },
+      { title: 'Pending Activation', value: pendingActivation, note: 'KYC approved, account pending' },
+    ];
+  }, [users, pendingKycList]);
 
   return (
     <div className="space-y-6">
@@ -664,12 +796,11 @@ function UserManagementPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {userManagementStats.map((stat, index) => (
+        {liveStats.map((stat, index) => (
           <StatCard
             key={stat.title}
             title={stat.title}
             value={stat.value}
-            change={stat.change}
             note={stat.note}
             icon={statIcons[index]}
             tone={statTones[index]}
@@ -688,6 +819,8 @@ function UserManagementPage() {
         searchPlaceholder="Search KYC ID, user name, or email..."
         itemsPerPage={10}
         actions={[{ label: loadingKyc ? 'Refreshing...' : 'Refresh Queue', icon: Check, variant: 'secondary', onClick: fetchAllData }]}
+        enableCsvExport
+        exportFileName="pending-kyc-approvals"
       />
 
       {/* Account Activation Table */}
@@ -703,6 +836,8 @@ function UserManagementPage() {
         searchableKeys={['id', 'name', 'email']}
         searchPlaceholder="Search by name or email..."
         itemsPerPage={10}
+        enableCsvExport
+        exportFileName="pending-account-activations"
       />
 
       {/* Main Users Directory */}
@@ -717,31 +852,40 @@ function UserManagementPage() {
         filterOptions={['Active', 'Inactive']}
         itemsPerPage={20}
         actions={[{ label: 'Add User', icon: UserPlus, variant: 'primary', onClick: handleAddClick }]}
+        enableCsvExport
+        exportFileName="users-directory"
       />
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm overflow-y-auto">
-          <div className={`glass-card w-full ${editUserId ? 'max-w-5xl' : 'max-w-md'} overflow-hidden border border-white/10 bg-[#08152f] my-auto max-h-[90vh]`}>
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 sticky top-0 bg-[#08152f] z-10">
-              <h3 className="font-heading text-lg font-semibold text-white">{editUserId ? 'Edit User' : 'Add New User'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md">
+          <div className={`flex w-full ${editUserId ? 'max-w-6xl' : 'max-w-md'} max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071226] shadow-[0_32px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_32px_90px_rgba(0,0,0,0.55)]`}>
+            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 px-6 py-5 bg-slate-50 dark:bg-[#08152f]">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-slate-900 dark:text-white">{editUserId ? 'Investor Review' : 'Add New User'}</h3>
+                {editUserId && (
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Account profile, linked bank details, and approved KYC documents in one review view.
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.04] p-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveUser} className="p-6 overflow-y-auto max-h-[calc(90vh-70px)]">
-              <div className={editUserId ? "grid grid-cols-1 lg:grid-cols-12 gap-8" : "space-y-4"}>
+            <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
+              <div className={`${editUserId ? "grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]" : "space-y-4"} min-h-0 flex-1 overflow-y-auto p-6 pb-24`}>
                 {/* Left Column: Form Fields */}
-                <div className={editUserId ? "lg:col-span-5 space-y-4" : "space-y-4"}>
+                <div className={editUserId ? "space-y-4 xl:sticky xl:top-0 xl:self-start" : "space-y-4"}>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Name</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Name</label>
                     <input required name="name" value={formData.name} onChange={handleInputChange} className="input-shell w-full" placeholder="Full Name" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Email</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Email</label>
                     <input required type="email" name="email" value={formData.email} onChange={handleInputChange} className="input-shell w-full" placeholder="Email Address" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Role</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Role</label>
                     <select name="role" value={formData.role} onChange={handleInputChange} className="input-shell w-full appearance-none">
                       <option value="Super Admin">Super Admin</option>
                       <option value="Admin">Admin</option>
@@ -754,7 +898,7 @@ function UserManagementPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-300">Status</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Status</label>
                     <select name="status" value={formData.status} onChange={handleInputChange} className="input-shell w-full appearance-none">
                       <option value="ACTIVE">ACTIVE</option>
                       <option value="PENDING">PENDING</option>
@@ -773,56 +917,39 @@ function UserManagementPage() {
                     </div>
                   )}
 
-                  <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      disabled={actionLoading}
-                      className="btn-secondary disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={actionLoading}
-                      className="rounded-xl bg-blue-500 hover:bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
-                    >
-                      {actionLoading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
                 </div>
 
                 {/* Right Column: Investor details, Bank details, and Documents */}
                 {editUserId && (
-                  <div className="lg:col-span-7 space-y-6 lg:border-l lg:border-white/10 lg:pl-8 pr-2">
+                  <div className="space-y-6 xl:border-l border-slate-200 dark:border-white/10 xl:pl-6">
                     {/* Investor Details */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Investor Account Details</h4>
-                      <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5 text-sm text-slate-300">
-                        <div><span className="text-slate-500 block text-xs">Mobile Number</span>{formData.mobileNumber || 'N/A'}</div>
-                        <div><span className="text-slate-500 block text-xs">PAN Number</span>{formData.panNumber || 'N/A'}</div>
-                        <div><span className="text-slate-500 block text-xs">Aadhaar Last 4</span>{formData.aadhaarLast4 || 'N/A'}</div>
-                        <div><span className="text-slate-500 block text-xs">Address</span>{formData.address || 'N/A'}</div>
+                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Investor Account Details</h4>
+                      <div className="grid gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-5 text-sm sm:grid-cols-2">
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Mobile Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.mobileNumber || 'N/A'}</span></div>
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">PAN Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.panNumber || 'N/A'}</span></div>
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Aadhaar Last 4</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.aadhaarLast4 || 'N/A'}</span></div>
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Address</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-words">{formData.address || 'N/A'}</span></div>
                       </div>
                     </div>
 
                     {/* Bank Info */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Bank Information</h4>
-                      <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/5 text-sm text-slate-300">
-                        <div><span className="text-slate-500 block text-xs">Bank Name</span>{formData.bankDetails?.bankName || 'N/A'}</div>
-                        <div><span className="text-slate-500 block text-xs">Account Number</span>{formData.bankDetails?.accountNumber || 'N/A'}</div>
-                        <div><span className="text-slate-500 block text-xs">IFSC Code</span>{formData.bankDetails?.ifscCode || 'N/A'}</div>
+                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Bank Information</h4>
+                      <div className="grid gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Bank Name</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-words">{formData.bankDetails?.bankName || 'N/A'}</span></div>
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Account Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.bankDetails?.accountNumber || 'N/A'}</span></div>
+                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">IFSC Code</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.bankDetails?.ifscCode || 'N/A'}</span></div>
                       </div>
                     </div>
 
                     {/* Uploaded Documents */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Uploaded Documents</h4>
+                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Uploaded Documents</h4>
                       {loadingDocs ? (
-                        <div className="py-8 flex justify-center text-slate-400 text-sm">Loading documents...</div>
+                        <div className="py-8 flex justify-center text-slate-500 dark:text-slate-400 text-sm">Loading documents...</div>
                       ) : kycDocs ? (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
                           {renderDoc('PAN Card', kycDocs.panCard || kycDocs.panCardUrl || kycDocs.panCardImage || kycDocs.panCardPath)}
                           {renderDoc('Aadhaar Front', kycDocs.aadhaarFront || kycDocs.aadhaarFrontUrl || kycDocs.aadhaarFrontImage || kycDocs.aadhaarFrontPath)}
                           {renderDoc('Aadhaar Back', kycDocs.aadhaarBack || kycDocs.aadhaarBackUrl || kycDocs.aadhaarBackImage || kycDocs.aadhaarBackPath)}
@@ -830,13 +957,30 @@ function UserManagementPage() {
                           {renderDoc('Bank Proof', kycDocs.bankProof || kycDocs.bankPassbookOrStatement || kycDocs.bankProofUrl || kycDocs.bankProofPath)}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] text-sm text-slate-500 text-center">
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] text-sm text-slate-500 text-center dark:text-slate-400">
                           No uploaded documents found for this user.
                         </div>
                       )}
                     </div>
                   </div>
                 )}
+              </div>
+              <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-3 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#08152f] px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={actionLoading}
+                  className="btn-secondary disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="rounded-xl bg-blue-500 hover:bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
+                >
+                  {actionLoading ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>
@@ -845,28 +989,31 @@ function UserManagementPage() {
 
       {/* KYC Review Modal */}
       {viewKycDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm overflow-y-auto">
-          <div className="glass-card w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-white/10 bg-[#08152f] my-auto">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 sticky top-0 bg-[#08152f] z-10">
-              <h3 className="font-heading text-lg font-semibold text-white">Review KYC Documents</h3>
-              <button onClick={() => !actionLoading && setViewKycDetails(null)} disabled={actionLoading} className="text-slate-400 hover:text-white disabled:opacity-50">
+        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+          <div className="flex w-full max-w-6xl max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071226] shadow-[0_32px_90px_rgba(0,0,0,0.25)] dark:shadow-[0_32px_90px_rgba(0,0,0,0.55)]">
+            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 px-6 py-5 bg-slate-50 dark:bg-[#08152f]">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-slate-900 dark:text-white">Review KYC Documents</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Inspect applicant details, uploaded files, and bank information before taking action.</p>
+              </div>
+              <button onClick={() => !actionLoading && setViewKycDetails(null)} disabled={actionLoading} className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.04] p-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-50">
                 <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="p-6 space-y-8">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 pb-24 space-y-8">
               {actionError && <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-400">{actionError}</div>}
               
               <div>
-                <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Applicant Details</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wide">Applicant Details</h4>
+                <div className="grid gap-4 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <span className="text-xs text-slate-500 block mb-1">ID</span>
-                    <span className="text-sm text-slate-200">{viewKycDetails.id || viewKycDetails.kycId}</span>
+                    <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">ID</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-200">{viewKycDetails.id || viewKycDetails.kycId}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 block mb-1">Name / ID</span>
-                    <span className="text-sm text-slate-200">
+                    <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Name / ID</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-200">
                       {(() => {
                         const u = users.find(u => String(u.id) === String(viewKycDetails.userId) || String(u.userId) === String(viewKycDetails.userId));
                         const name = viewKycDetails.fullName || viewKycDetails.userName || viewKycDetails.name || u?.fullName || u?.name || (u?.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : null);
@@ -875,8 +1022,8 @@ function UserManagementPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 block mb-1">Email</span>
-                    <span className="text-sm text-slate-200">
+                    <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Email</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-200">
                       {(() => {
                         const u = users.find(u => String(u.id) === String(viewKycDetails.userId) || String(u.userId) === String(viewKycDetails.userId));
                         return viewKycDetails.email || u?.email || 'N/A';
@@ -884,8 +1031,8 @@ function UserManagementPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 block mb-1">Submitted</span>
-                    <span className="text-sm text-slate-200">
+                    <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Submitted</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-200">
                       {(() => {
                         const u = users.find(u => String(u.id) === String(viewKycDetails.userId) || String(u.userId) === String(viewKycDetails.userId));
                         const dateStr = viewKycDetails.submittedAt || viewKycDetails.createdAt || viewKycDetails.updatedAt || u?.createdAt || u?.joinDate || u?.registrationDate;
@@ -902,16 +1049,28 @@ function UserManagementPage() {
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Uploaded Documents</h4>
+                <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-300 mb-4 uppercase tracking-wide">Uploaded Documents</h4>
                 {loadingDocs ? (
-                  <div className="py-12 flex justify-center text-slate-400">Loading documents...</div>
+                  <div className="py-12 flex justify-center text-slate-500 dark:text-slate-300">Loading documents...</div>
                 ) : (kycDocs || viewKycDetails) ? (
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {renderDoc('PAN Card', kycDocs?.panCard || kycDocs?.panCardUrl || kycDocs?.panCardImage || kycDocs?.panCardPath || viewKycDetails?.panCardPath)}
-                    {renderDoc('Aadhaar Front', kycDocs?.aadhaarFront || kycDocs?.aadhaarFrontUrl || kycDocs?.aadhaarFrontImage || kycDocs?.aadhaarFrontPath || viewKycDetails?.aadhaarFrontPath)}
-                    {renderDoc('Aadhaar Back', kycDocs?.aadhaarBack || kycDocs?.aadhaarBackUrl || kycDocs?.aadhaarBackImage || kycDocs?.aadhaarBackPath || viewKycDetails?.aadhaarBackPath)}
-                    {renderDoc('Selfie Photo', kycDocs?.selfie || kycDocs?.selfieUrl || kycDocs?.selfiePhoto || kycDocs?.selfiePath || viewKycDetails?.selfiePath)}
-                    {renderDoc('Bank Proof', kycDocs?.bankProof || kycDocs?.bankPassbookOrStatement || kycDocs?.bankProofUrl || kycDocs?.bankProofPath || viewKycDetails?.bankProofPath)}
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {DOC_REUPLOAD_FIELDS.map((doc) =>
+                      renderDoc(
+                        doc.label,
+                        kycDocs?.[doc.key] ||
+                          kycDocs?.[`${doc.key}Url`] ||
+                          kycDocs?.[`${doc.key}Image`] ||
+                          kycDocs?.[`${doc.key}Path`] ||
+                          viewKycDetails?.[`${doc.key}Path`],
+                        {
+                          status: kycDocs?.[doc.statusKey] || viewKycDetails?.[doc.statusKey],
+                          reason: kycDocs?.[doc.reasonKey] || viewKycDetails?.[doc.reasonKey],
+                          selectable: true,
+                          selected: docReuploadFlags[doc.key],
+                          onToggle: () => setDocReuploadFlags((prev) => ({ ...prev, [doc.key]: !prev[doc.key] })),
+                        },
+                      ),
+                    )}
                   </div>
                 ) : (
                   <div className="py-12 flex justify-center text-rose-400">Failed to load documents.</div>
@@ -954,8 +1113,8 @@ function UserManagementPage() {
                 if (!hasAnyBankDetail) {
                   return (
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
-                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] text-sm text-slate-400">
+                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-300 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
+                      <div className="p-4 rounded-xl border border-white/10 bg-white/[0.035] text-sm text-slate-500 dark:text-slate-300">
                         No typed bank details found. The user will link their bank account after their KYC is approved.
                       </div>
                     </div>
@@ -964,26 +1123,26 @@ function UserManagementPage() {
 
                 return (
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                    <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wide">Linked Bank Details</h4>
+                    <div className="grid gap-4 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-4 sm:grid-cols-2 lg:grid-cols-4">
                       <div>
-                        <span className="text-xs text-slate-500 block mb-1">Account Holder</span>
-                        <span className="text-sm text-slate-200">{bankInfo.accountHolderName || 'N/A'}</span>
+                        <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Account Holder</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-200">{bankInfo.accountHolderName || 'N/A'}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 block mb-1">Bank Name</span>
-                        <span className="text-sm text-slate-200">{bankInfo.bankName || 'N/A'}</span>
+                        <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Bank Name</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-200">{bankInfo.bankName || 'N/A'}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 block mb-1">Account Number</span>
-                        <span className="text-sm text-slate-200 font-mono">{bankInfo.accountNumber || 'N/A'}</span>
+                        <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">Account Number</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">{bankInfo.accountNumber || 'N/A'}</span>
                       </div>
                       <div>
-                        <span className="text-xs text-slate-500 block mb-1">IFSC Code</span>
-                        <span className="text-sm text-slate-200 font-mono">{bankInfo.ifscCode || 'N/A'}</span>
+                        <span className="text-xs text-slate-500 block mb-1 dark:text-slate-400">IFSC Code</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-200 font-mono">{bankInfo.ifscCode || 'N/A'}</span>
                       </div>
                     </div>
-                    <p className="mt-3 text-xs text-slate-400">
+                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
                       <AlertCircle className="inline-block h-3 w-3 mr-1 -mt-0.5" />
                       Approving this KYC will also approve the attached bank details for withdrawals.
                     </p>
@@ -991,9 +1150,9 @@ function UserManagementPage() {
                 );
               })()}
 
-              <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+              <div className="grid md:grid-cols-2 gap-6 pt-4 border-t border-slate-200/60 dark:border-white/5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Admin Notes (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Admin Notes (Optional)</label>
                   <textarea 
                     value={adminNotes} 
                     onChange={e => setAdminNotes(e.target.value)} 
@@ -1002,7 +1161,7 @@ function UserManagementPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Rejection Reason <span className="text-rose-400">*</span></label>
+                  <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Rejection Reason <span className="text-rose-400">*</span></label>
                   <textarea 
                     value={rejectReason} 
                     onChange={e => setRejectReason(e.target.value)} 
@@ -1013,12 +1172,20 @@ function UserManagementPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-white/10 px-6 py-4 bg-[#08152f] sticky bottom-0">
+            <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-3 border-t border-slate-200 dark:border-white/10 px-6 py-4 bg-slate-50 dark:bg-[#08152f]">
               <button type="button" onClick={() => setViewKycDetails(null)} disabled={actionLoading} className="btn-secondary disabled:opacity-50">
                 {String(viewKycDetails?.status || 'PENDING').toUpperCase() === 'PENDING' ? 'Cancel' : 'Close'}
               </button>
               {String(viewKycDetails?.status || 'PENDING').toUpperCase() === 'PENDING' && (
                 <>
+                  <button
+                    type="button"
+                    onClick={handleRequestReupload}
+                    disabled={actionLoading || loadingDocs || !kycDocs || kycDocs.empty}
+                    className="rounded-xl bg-amber-500 hover:bg-amber-600 px-6 py-2 text-sm font-semibold text-slate-950 transition disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Processing...' : 'Request Reupload'}
+                  </button>
                   <button
                     type="button"
                     onClick={handleReject}
@@ -1045,16 +1212,16 @@ function UserManagementPage() {
       {/* Account Activation Confirmation Modal */}
       {activationModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-          <div className="glass-card w-full max-w-md overflow-hidden border border-white/10 bg-[#08152f]">
-            <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <h3 className="font-heading text-lg font-semibold text-white">Activate Account</h3>
-              <button onClick={() => setActivationModal({ isOpen: false, row: null, error: '' })} disabled={actionLoading} className="text-slate-400 hover:text-white disabled:opacity-50">
+          <div className="glass-card w-full max-w-md overflow-hidden border border-slate-200 dark:border-white/10 bg-white dark:bg-[#08152f] shadow-[0_16px_40px_rgba(0,0,0,0.2)]">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 px-6 py-4">
+              <h3 className="font-heading text-lg font-semibold text-slate-900 dark:text-white">Activate Account</h3>
+              <button onClick={() => setActivationModal({ isOpen: false, row: null, error: '' })} disabled={actionLoading} className="text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-50">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-300 mb-4">
-                Are you sure you want to activate the account for <strong className="text-white">{activationModal.row?.name || activationModal.row?.fullName || (activationModal.row?.firstName ? `${activationModal.row?.firstName} ${activationModal.row?.lastName || ''}`.trim() : 'this user')}</strong>? 
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                Are you sure you want to activate the account for <strong className="text-slate-800 dark:text-white">{activationModal.row?.name || activationModal.row?.fullName || (activationModal.row?.firstName ? `${activationModal.row?.firstName} ${activationModal.row?.lastName || ''}`.trim() : 'this user')}</strong>? 
                 This will grant them full access to the platform.
               </p>
               
@@ -1065,7 +1232,7 @@ function UserManagementPage() {
                 </div>
               )}
               
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/5">
                 <button
                   type="button"
                   onClick={() => setActivationModal({ isOpen: false, row: null, error: '' })}

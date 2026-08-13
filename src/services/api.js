@@ -15,6 +15,16 @@ export function buildUrl(endpoint) {
   return `${BASE_URL}${normalizedEndpoint}`;
 }
 
+export function getFileViewUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return buildUrl(`/api/files/view?path=${encodeURIComponent(path)}`);
+}
+
+export function getLegalDocument(documentKey) {
+  return request(`/api/legal/${documentKey}`);
+}
+
 // ── Storage Keys ──────────────────────────────────────────
 const TOKEN_KEYS = {
   ACCESS: 'anusha-access-token',
@@ -29,6 +39,7 @@ const TOKEN_KEYS = {
   BANK_NAME: 'anusha-bank-name',
   BANK_ACCOUNT: 'anusha-bank-account',
   UPI_ID: 'anusha-upi-id',
+  REFERRAL_CODE: 'anusha-referral-code',
   ONBOARDING_STATUS: 'anusha-onboarding-status',
 };
 
@@ -112,6 +123,10 @@ export function getSavedUpiId() {
   return localStorage.getItem(TOKEN_KEYS.UPI_ID);
 }
 
+export function getSavedReferralCode() {
+  return localStorage.getItem(TOKEN_KEYS.REFERRAL_CODE);
+}
+
 export function getStoredOnboardingStatus() {
   try {
     const raw = localStorage.getItem(TOKEN_KEYS.ONBOARDING_STATUS);
@@ -119,6 +134,30 @@ export function getStoredOnboardingStatus() {
   } catch (_) {
     return null;
   }
+}
+
+export async function hydrateInvestorSessionState() {
+  const [dashboardResult, securityResult] = await Promise.allSettled([
+    request('/api/dashboard', { auth: true }),
+    request('/api/security/summary', { auth: true }),
+  ]);
+
+  const dashboard = dashboardResult.status === 'fulfilled' ? (dashboardResult.value || {}) : {};
+  const security = securityResult.status === 'fulfilled' ? (securityResult.value || {}) : {};
+  const profile = dashboard?.profile || {};
+
+  return {
+    user: profile,
+    name: profile.fullName || profile.name,
+    email: profile.email,
+    mobileNumber: profile.mobileNumber || profile.phoneNumber || profile.phone,
+    referralCode: profile.referralCode,
+    onboardingStatus: dashboard?.onboardingStatus || profile.onboardingStatus,
+    kycStatus: dashboard?.kycStatus || profile.kycStatus,
+    bankVerified: security?.bankVerified ?? profile.bankVerified,
+    mpinCreated: security?.mpinCreated,
+    accountStatus: profile.accountStatus || dashboard?.accountStatus,
+  };
 }
 
 export function saveOnboardingStatus(status) {
@@ -149,6 +188,7 @@ export function saveAuthData({
   bankName,
   bankAccountNumber,
   upiId,
+  referralCode,
   user,
   onboardingStatus,
   kycStatus,
@@ -249,6 +289,7 @@ export function saveAuthData({
   const resolvedBankName = bankName || user?.bankName || user?.bank?.bankName || user?.bankDetails?.bankName;
   const resolvedBankAccount = bankAccountNumber || user?.bankAccountNumber || user?.accountNumber || user?.bank?.bankAccountNumber || user?.bankDetails?.bankAccountNumber;
   const resolvedUpiId = upiId || user?.upiId || user?.vpa || user?.bank?.upiId || user?.bankDetails?.upiId;
+  const resolvedReferralCode = referralCode || user?.referralCode;
   if (resolvedPhone) localStorage.setItem(TOKEN_KEYS.USER_PHONE, resolvedPhone);
   if (resolvedCity) localStorage.setItem(TOKEN_KEYS.USER_CITY, resolvedCity);
   if (resolvedJoinedAt) localStorage.setItem(TOKEN_KEYS.JOINED_AT, resolvedJoinedAt);
@@ -260,6 +301,7 @@ export function saveAuthData({
   else if (looksLikePersonName) localStorage.removeItem(TOKEN_KEYS.BANK_NAME); // clear corrupted value
   if (resolvedBankAccount) localStorage.setItem(TOKEN_KEYS.BANK_ACCOUNT, resolvedBankAccount);
   if (resolvedUpiId) localStorage.setItem(TOKEN_KEYS.UPI_ID, resolvedUpiId);
+  if (resolvedReferralCode) localStorage.setItem(TOKEN_KEYS.REFERRAL_CODE, resolvedReferralCode);
 
   saveOnboardingStatus({
     onboardingStatus: onboardingStatus ?? user?.onboardingStatus,
@@ -352,14 +394,88 @@ export async function request(endpoint, { method = 'GET', body, auth = false, re
   return data;
 }
 
+async function requestFormData(endpoint, { method = 'POST', formData, auth = false, retryOnAuthFail = true } = {}) {
+  const headers = {};
+
+  if (auth) {
+    const token = getAccessToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let res;
+  try {
+    res = await fetch(buildUrl(endpoint), {
+      method,
+      headers,
+      body: formData,
+    });
+  } catch (networkError) {
+    const error = new Error(
+      'Unable to connect to server. Check internet, API URL, HTTPS, and backend CORS for this origin.',
+    );
+    error.status = 0;
+    error.data = { cause: networkError?.message || 'NetworkError' };
+    throw error;
+  }
+
+  const text = await res.text().catch(() => '');
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_) {
+    data = { raw: text };
+  }
+
+  if (!res.ok) {
+    if (auth && (res.status === 401 || res.status === 403) && retryOnAuthFail) {
+      const storedRefreshToken = getRefreshToken();
+      if (!storedRefreshToken) {
+        clearAuthData();
+        window.location.href = '/login';
+      } else {
+        try {
+          const refreshResult = await request('/api/auth/refresh-token', {
+            method: 'POST',
+            body: { refreshToken: storedRefreshToken },
+            retryOnAuthFail: false,
+          });
+          if (refreshResult?.accessToken) {
+            saveAuthData({ accessToken: refreshResult.accessToken });
+            return requestFormData(endpoint, { method, formData, auth, retryOnAuthFail: false });
+          }
+        } catch (refreshError) {
+          clearAuthData();
+          window.location.href = '/login';
+          throw refreshError;
+        }
+      }
+    }
+
+    const validationDetails =
+      Array.isArray(data?.errors) ? data.errors.join(', ')
+        : Array.isArray(data?.details) ? data.details.join(', ')
+          : typeof data?.details === 'string' ? data.details
+            : '';
+    const baseMessage = data.message || data.error || `Request failed (${res.status})`;
+    const errorMessage = validationDetails ? `${baseMessage}: ${validationDetails}` : baseMessage;
+    const error = new Error(errorMessage);
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
 // ── Auth APIs ─────────────────────────────────────────────
 
 /**
  * Step 1: Send OTP helper — tells frontend to use Firebase Phone Auth
  */
-export function sendOtp(mobileNumber, countryCode = '+91', type = 'REGISTRATION') {
+export function sendOtp(mobileNumber, countryCode = '+91', type = 'REGISTRATION', options = {}) {
   const normalizedMobile = String(mobileNumber || '').replace(/\D/g, '');
   const fullMobileNumber = `${countryCode}${normalizedMobile}`;
+  const { useFirebase = false } = options;
   return request('/api/auth/send-otp', {
     method: 'POST',
     body: {
@@ -367,7 +483,8 @@ export function sendOtp(mobileNumber, countryCode = '+91', type = 'REGISTRATION'
       mobileNumber: normalizedMobile,
       phoneNumber: normalizedMobile,
       fullMobileNumber: fullMobileNumber,
-      channel: 'MOBILE_OTP',
+      channel: useFirebase ? 'FIREBASE_PHONE_AUTH' : 'MOBILE_OTP',
+      useFirebase,
       type: type, // 'REGISTRATION' or 'FORGOT_PASSWORD'
     },
   }).catch((error) => {
@@ -418,6 +535,10 @@ export function verifyEmailOtp(email, otp) {
   });
 }
 
+export function validateReferralCode(code) {
+  return request(`/api/auth/referrals/validate?code=${encodeURIComponent(String(code || '').trim())}`);
+}
+
 /**
  * Step 3: Register new user (after OTP verification)
  */
@@ -428,13 +549,6 @@ export function registerUser({
   email,
   mobileNumber,
   password,
-  dateOfBirth,
-  panNumber,
-  aadhaarLast4,
-  address,
-  bankAccountNumber,
-  bankIfscCode,
-  bankName,
   referredByCode = null,
   riskDisclosureAccepted,
   investorAgreementAccepted,
@@ -442,32 +556,18 @@ export function registerUser({
   privacyPolicyAccepted,
   kycConsentAccepted,
 }) {
-  const hasSignupToken = Boolean(signupVerificationToken);
-  const currentBody = {
+  const emailRegistrationBody = {
     fullName,
     email,
     mobileNumber,
-    idToken,
     password,
-    dateOfBirth,
-    panNumber,
-    aadhaarLast4,
-    address,
-    bankAccountNumber,
-    bankIfscCode,
-    bankName,
     referredByCode,
     signupVerificationToken,
     riskDisclosureAccepted,
     investorAgreementAccepted,
-    termsAccepted,
-    privacyPolicyAccepted,
-    kycConsentAccepted,
-    privacyAccepted: privacyPolicyAccepted,
-    kycConsent: kycConsentAccepted,
   };
 
-  const legacyBody = {
+  const mobileRegistrationBody = {
     idToken,
     fullName,
     email,
@@ -483,24 +583,16 @@ export function registerUser({
     kycConsent: kycConsentAccepted,
   };
 
-  // If verify-otp didn't return signupVerificationToken, prefer legacy onboarding register.
-  if (!hasSignupToken && idToken) {
+  if (idToken && !signupVerificationToken) {
     return request('/api/auth/onboarding/register', {
       method: 'POST',
-      body: legacyBody,
+      body: mobileRegistrationBody,
     });
   }
 
   return request('/api/auth/register', {
     method: 'POST',
-    body: currentBody,
-  }).catch(async (error) => {
-    // Current endpoint unavailable, or rejects token payload shape; try legacy as fallback.
-    if (![400, 404, 405].includes(error?.status)) throw error;
-    return request('/api/auth/onboarding/register', {
-      method: 'POST',
-      body: legacyBody,
-    });
+    body: emailRegistrationBody,
   });
 }
 
@@ -525,6 +617,13 @@ export function loginWithEmail(email, password) {
   });
 }
 
+export function forgotPassword({ email, mobileNumber }) {
+  return request('/api/auth/forgot-password', {
+    method: 'POST',
+    body: { email, mobileNumber },
+  });
+}
+
 /**
  * Step 6: Refresh access token
  */
@@ -545,34 +644,41 @@ export function verifyMpinLogin(mobileNumber, mpin) {
 }
 
 // ── Reset Password ────────────────────────────────────────
-export function resetPassword(idToken, newPassword) {
+export function resetPassword(token, newPassword) {
   return request('/api/auth/reset-password', {
     method: 'POST',
-    body: { idToken, newPassword },
+    body: { token, newPassword },
   });
 }
 
 // ── KYC APIs ──────────────────────────────────────────────
-export function verifyPan(panNumber) {
-  return request('/api/kyc/pan-verify', { method: 'POST', body: { panNumber }, auth: true });
+export function verifyPan({ panNumber, panCardImage }) {
+  const formData = new FormData();
+  if (panCardImage) formData.append('panCardImage', panCardImage);
+  if (panNumber) formData.append('panNumber', panNumber);
+  return requestFormData('/api/kyc/pan-verify', { method: 'POST', formData, auth: true });
 }
 
-export function verifyAadhaar(aadhaarNumber) {
-  return request('/api/kyc/aadhaar-verify', { method: 'POST', body: { aadhaarNumber }, auth: true });
+export function verifyAadhaar({
+  aadhaarNumber,
+  aadhaarLast4,
+  address,
+  aadhaarFrontImage,
+  aadhaarBackImage,
+}) {
+  const formData = new FormData();
+  if (aadhaarFrontImage) formData.append('aadhaarFrontImage', aadhaarFrontImage);
+  if (aadhaarBackImage) formData.append('aadhaarBackImage', aadhaarBackImage);
+  if (aadhaarNumber) formData.append('aadhaarNumber', aadhaarNumber);
+  if (aadhaarLast4) formData.append('aadhaarLast4', aadhaarLast4);
+  if (address) formData.append('address', address);
+  return requestFormData('/api/kyc/aadhaar-verify', { method: 'POST', formData, auth: true });
 }
 
 export function uploadSelfie(file) {
   const formData = new FormData();
-  formData.append('selfie', file);
-  const token = getAccessToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(buildUrl('/api/kyc/upload-selfie'), { method: 'POST', headers, body: formData })
-    .then(async (res) => {
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || `Upload failed (${res.status})`);
-      return data;
-    });
+  formData.append('selfiePhoto', file);
+  return requestFormData('/api/kyc/upload-selfie', { method: 'POST', formData, auth: true });
 }
 
 export function getKycStatus() {
@@ -590,20 +696,7 @@ export function submitKyc(form) {
   formData.append('aadhaarLast4', form.aadhaarLast4 || '');
   formData.append('dateOfBirth', form.dateOfBirth || '');
   formData.append('address', form.address || '');
-
-  const token = getAccessToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  return fetch(buildUrl('/api/kyc/submit'), { method: 'POST', headers, body: formData }).then(async (res) => {
-    const text = await res.text().catch(() => '');
-    let data = {};
-    try { data = JSON.parse(text); } catch (_) { /* not JSON */ }
-    if (!res.ok) {
-      console.error(`[KYC submit] ${res.status} response:`, text);
-      const detailStr = Array.isArray(data.details) ? ` [${data.details.join(', ')}]` : '';
-      throw new Error((data.message || data.error || `KYC submit failed (${res.status})`) + detailStr);
-    }
-    return data;
-  });
+  return requestFormData('/api/kyc/submit', { method: 'POST', formData, auth: true });
 }
 
 // ── Bank APIs ─────────────────────────────────────────────
@@ -645,10 +738,38 @@ export function getActivePlans() {
   return request('/api/plans', { auth: true });
 }
 
-export function applyInvestment({ investmentPlanId, investmentAmount }) {
+export function getActiveCoupons() {
+  return request('/api/coupons', { auth: true });
+}
+
+export function validateCoupon({ investmentPlanId, investmentAmount, couponCode }) {
+  return request('/api/coupons/validate', {
+    method: 'POST',
+    body: { investmentPlanId, investmentAmount, couponCode },
+    auth: true,
+  });
+}
+
+export function applyInvestment({ investmentPlanId, investmentAmount, couponCode }) {
   return request('/api/investments/apply', {
     method: 'POST',
-    body: { investmentPlanId, investmentAmount },
+    body: { investmentPlanId, investmentAmount, couponCode },
+    auth: true,
+  });
+}
+
+export function createRazorpayCheckoutOrder({ investmentPlanId, investmentAmount, couponCode }) {
+  return request('/api/payments/razorpay/checkout-order', {
+    method: 'POST',
+    body: { investmentPlanId, investmentAmount, couponCode },
+    auth: true,
+  });
+}
+
+export function verifyRazorpayPayment({ investmentId, razorpayOrderId, razorpayPaymentId, razorpaySignature }) {
+  return request('/api/payments/razorpay/verify', {
+    method: 'POST',
+    body: { investmentId, razorpayOrderId, razorpayPaymentId, razorpaySignature },
     auth: true,
   });
 }
@@ -660,17 +781,10 @@ export function uploadPaymentReceipt({ investmentId, receiptFile, paymentAmount,
   formData.append('paymentDate', paymentDate);
   formData.append('paymentMode', paymentMode);
   formData.append('bankReference', bankReference);
-  const token = getAccessToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(buildUrl(`/api/investments/${investmentId}/upload-receipt`), {
+  return requestFormData(`/api/investments/${investmentId}/upload-receipt`, {
     method: 'POST',
-    headers,
-    body: formData,
-  }).then(async (res) => {
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `Upload failed (${res.status})`);
-    return data;
+    formData,
+    auth: true,
   });
 }
 
@@ -699,6 +813,10 @@ export function getWalletTransactions() {
   return request('/api/wallet/transactions', { auth: true });
 }
 
+export function getWithdrawalSettings() {
+  return request('/api/withdrawals/settings', { auth: true });
+}
+
 export function requestWithdrawal(requestedAmountOrPayload) {
   const payload =
     typeof requestedAmountOrPayload === 'object' && requestedAmountOrPayload !== null
@@ -707,14 +825,7 @@ export function requestWithdrawal(requestedAmountOrPayload) {
   const amount = Number(payload.requestedAmount ?? payload.amount ?? payload.withdrawalAmount ?? 0);
   return request('/api/withdrawals/request', {
     method: 'POST',
-    body: {
-      requestedAmount: amount,
-      amount,
-      withdrawalAmount: amount,
-      method: payload.method || payload.paymentMethod || payload.mode || 'Bank Transfer',
-      paymentMethod: payload.paymentMethod || payload.method || payload.mode || 'Bank Transfer',
-      mode: payload.mode || payload.method || payload.paymentMethod || 'Bank Transfer',
-    },
+    body: { requestedAmount: amount },
     auth: true,
   });
 }
@@ -729,15 +840,20 @@ export function getInvestorDashboard() {
 }
 
 export async function updateProfileDetails(profile) {
-  return request('/api/user/profile', {
-    method: 'PUT',
-    body: profile,
-    auth: true,
+  saveAuthData({
+    name: profile.name,
+    email: profile.email,
+    mobileNumber: profile.phone,
+    city: profile.city,
+    bankName: profile.bankName,
+    bankAccountNumber: profile.accountNumber,
+    upiId: profile.upiId,
   });
+  return { success: true, profile };
 }
 
 export function getUserProfile() {
-  return request('/api/user/profile', { auth: true });
+  return getInvestorDashboard().then((response) => response?.profile || response?.data?.profile || {});
 }
 
 export function getReferralTree() {
@@ -748,13 +864,67 @@ export function getReferralCommissions() {
   return request('/api/referrals/commissions', { auth: true });
 }
 
+export function getWalletTransactionProof(transactionId) {
+  return request(`/api/wallet/transactions/${transactionId}/proof`, { auth: true });
+}
+
 export function getNotifications() {
   return request('/api/notifications', { auth: true });
+}
+
+export function getNotificationPreferences() {
+  return request('/api/notifications/preferences', { auth: true });
+}
+
+export function updateNotificationPreferences(preferences) {
+  return request('/api/notifications/preferences', {
+    method: 'PUT',
+    body: preferences,
+    auth: true,
+  });
+}
+
+export function getNotificationSummary() {
+  return request('/api/notifications/summary', { auth: true });
 }
 
 export function markNotificationRead(notificationId) {
   return request(`/api/notifications/${notificationId}/read`, {
     method: 'POST',
+    auth: true,
+  });
+}
+
+export function markAllNotificationsRead() {
+  return request('/api/notifications/read-all', {
+    method: 'POST',
+    auth: true,
+  });
+}
+
+export function deleteNotification(notificationId) {
+  return request(`/api/notifications/${notificationId}`, {
+    method: 'DELETE',
+    auth: true,
+  });
+}
+
+export function getInvestorStatements() {
+  return request('/api/statements', { auth: true });
+}
+
+export function getSecuritySummary() {
+  return request('/api/security/summary', { auth: true });
+}
+
+export function getSupportTickets() {
+  return request('/api/support/tickets', { auth: true });
+}
+
+export function createSupportTicket(ticket) {
+  return request('/api/support/tickets', {
+    method: 'POST',
+    body: ticket,
     auth: true,
   });
 }
@@ -767,6 +937,10 @@ export function adminGetPendingKyc() {
 
 export function adminGetKycDocuments(kycId) {
   return request(`/api/admin/kyc/${kycId}/documents`, { auth: true });
+}
+
+export function adminGetUserKycDocuments(userId) {
+  return request(`/api/admin/kyc/user/${userId}/documents`, { auth: true });
 }
 
 export function adminApproveKyc(kycId, adminNotes) {
@@ -849,6 +1023,18 @@ export function adminGetPendingWithdrawals() {
   return request('/api/admin/withdrawals/pending', { auth: true });
 }
 
+export function adminGetWithdrawalSettings() {
+  return request('/api/admin/withdrawals/settings', { auth: true });
+}
+
+export function adminUpdateWithdrawalSettings(settings) {
+  return request('/api/admin/withdrawals/settings', {
+    method: 'PUT',
+    body: settings,
+    auth: true,
+  });
+}
+
 export function adminApproveWithdrawal(withdrawalId, adminNotes) {
   return request(`/api/admin/withdrawals/${withdrawalId}/approve`, {
     method: 'POST',
@@ -875,6 +1061,105 @@ export function adminRejectWithdrawal(withdrawalId, reason, adminNotes) {
 
 export function adminGetDashboard() {
   return request('/api/admin/dashboard', { auth: true });
+}
+
+export function adminGetReferralReport() {
+  return request('/api/admin/referrals/report', { auth: true });
+}
+
+export function adminGetReferralCommissions() {
+  return request('/api/admin/referrals/commissions', { auth: true });
+}
+
+export function adminReleaseReferralCommission(commissionId) {
+  return request(`/api/admin/referrals/commissions/${commissionId}/release`, {
+    method: 'POST',
+    auth: true,
+  });
+}
+
+export function adminGetReferralPreview(investmentId) {
+  return request(`/api/admin/referrals/preview?investmentId=${encodeURIComponent(investmentId)}`, { auth: true });
+}
+
+export function adminSimulateReferralPayout(payload) {
+  return request('/api/admin/referrals/simulate', {
+    method: 'POST',
+    body: payload,
+    auth: true,
+  });
+}
+
+export function adminAdjustWallet(payload) {
+  return request('/api/admin/wallet/adjust', {
+    method: 'POST',
+    body: payload,
+    auth: true,
+  });
+}
+
+export function adminGetUser360(userId) {
+  return request(`/api/admin/users/${userId}/360`, { auth: true });
+}
+
+export function adminGetFraudRules() {
+  return request('/api/admin/fraud/rules', { auth: true });
+}
+
+export function adminGetSupportTickets() {
+  return request('/api/admin/support/tickets', { auth: true });
+}
+
+export function adminRespondSupportTicket(ticketId, payload) {
+  return request(`/api/admin/support/tickets/${ticketId}/respond`, {
+    method: 'POST',
+    body: payload,
+    auth: true,
+  });
+}
+
+export function adminGetCoupons() {
+  return request('/api/admin/coupons', { auth: true });
+}
+
+export function adminCreateCoupon(coupon) {
+  return request('/api/admin/coupons', {
+    method: 'POST',
+    body: coupon,
+    auth: true,
+  });
+}
+
+export function adminUpdateCoupon(couponId, coupon) {
+  return request(`/api/admin/coupons/${couponId}`, {
+    method: 'PUT',
+    body: coupon,
+    auth: true,
+  });
+}
+
+export function adminGetLegalDocuments() {
+  return request('/api/admin/legal', { auth: true });
+}
+
+export function adminUpdateLegalDocument(documentKey, document) {
+  return request(`/api/admin/legal/${documentKey}`, {
+    method: 'PUT',
+    body: document,
+    auth: true,
+  });
+}
+
+export function adminGetReferralSettings() {
+  return request('/api/admin/referrals/settings', { auth: true });
+}
+
+export function adminUpdateReferralSettings(settings) {
+  return request('/api/admin/referrals/settings', {
+    method: 'PUT',
+    body: settings,
+    auth: true,
+  });
 }
 
 export function adminGetUsers() {
