@@ -970,6 +970,37 @@ export function createSupportTicket(ticket) {
   });
 }
 
+// ── Admin Auth APIs (Phase 1) ────────────────────────────────────
+export function adminLogin(payload) {
+  return request('/api/admin/auth/login', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function adminVerify2fa(payload) {
+  return request('/api/admin/auth/verify-2fa', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function adminGetMe() {
+  return request('/api/admin/auth/me', { auth: true });
+}
+
+export function adminGetStaff() {
+  return request('/api/admin/staff', { auth: true });
+}
+
+export function adminCreateStaff(staffData) {
+  return request('/api/admin/staff', {
+    method: 'POST',
+    body: staffData,
+    auth: true,
+  });
+}
+
 // ── Admin APIs (KYC, Plans, Investments, Withdrawals, Ops) ──────
 // Example: Get pending KYC for admin
 export function adminGetPendingKyc() {

@@ -46,6 +46,7 @@ const AdminUser360 = lazy(() => import('./pages/User360Page'));
 const AdminSupport = lazy(() => import('./pages/AdminSupportPage'));
 const AdminReports = lazy(() => import('./pages/ReportsPage'));
 const AdminSettings = lazy(() => import('./pages/SettingsPage'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 
 const AUTH_STORAGE_KEY = 'anusha-invest-hub-auth-role'; // kept for backward compat, also used in api.js
 
@@ -132,6 +133,7 @@ function App() {
           authRole ? <Navigate to={defaultPath} replace /> : <SignupPage onLogin={handleLogin} />
         }
       />
+      <Route path="/admin/login" element={withSuspense(<AdminLoginPage />)} />
       <Route path="/forgot-mpin" element={<ForgotMpinPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
