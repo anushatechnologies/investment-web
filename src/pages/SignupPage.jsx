@@ -138,7 +138,10 @@ function SignupPage({ onLogin }) {
       setLoading(true);
       setError('');
       try {
-        await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
+        const res = await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
+        if (res?.otp && res.emailSent === false) {
+          setError(`Server email service is inactive. Your OTP is: ${res.otp}`);
+        }
         startOtpTimer();
         setStep(STEPS.OTP);
       } catch (err) {
@@ -175,7 +178,10 @@ function SignupPage({ onLogin }) {
       }
     } else {
       try {
-        await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
+        const res = await import('../services/api').then(api => api.sendEmailOtp(emailForOtp));
+        if (res?.otp && res.emailSent === false) {
+          setError(`Server email service is inactive. Your OTP is: ${res.otp}`);
+        }
         startOtpTimer();
       } catch (err) {
         setError(err.message || 'Failed to resend OTP.');
