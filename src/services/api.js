@@ -539,6 +539,35 @@ export function validateReferralCode(code) {
   return request(`/api/auth/referrals/validate?code=${encodeURIComponent(String(code || '').trim())}`);
 }
 
+export function forgotMpin(mobileNumber) {
+  return request('/api/auth/forgot-mpin', {
+    method: 'POST',
+    body: { mobileNumber },
+  });
+}
+
+export function verifyResetMpinOtp(mobileNumber, otp) {
+  return request('/api/auth/verify-reset-mpin-otp', {
+    method: 'POST',
+    body: { mobileNumber, otp },
+  });
+}
+
+export function resetMpin(mobileNumber, resetToken, newMpin) {
+  return request('/api/auth/reset-mpin', {
+    method: 'POST',
+    body: { mobileNumber, resetToken, newMpin },
+  });
+}
+
+export function changeMpin(currentMpin, newMpin) {
+  return request('/api/auth/change-mpin', {
+    method: 'POST',
+    body: { currentMpin, newMpin },
+    auth: true,
+  });
+}
+
 /**
  * Step 3: Register new user (after OTP verification)
  */
