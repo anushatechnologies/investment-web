@@ -57,9 +57,8 @@ function Watchlist() {
   }, [watchlist]);
 
   const fallbackPlans = [
-    { id: 'growth-12', planName: 'Growth 12', minimumAmount: 50000, maximumAmount: 1000000, monthlyInterestRate: 2.2, tenureMonths: 12 },
-    { id: 'income-6', planName: 'Income 6', minimumAmount: 25000, maximumAmount: 500000, monthlyInterestRate: 1.7, tenureMonths: 6 },
-    { id: 'premium-18', planName: 'Premium 18', minimumAmount: 100000, maximumAmount: 2500000, monthlyInterestRate: 2.6, tenureMonths: 18 },
+    { id: 'standard-growth', planName: 'Anusha Standard Growth Plan', minimumAmount: 10000, maximumAmount: 1000000, monthlyInterestRate: 10.0, lockInMonths: 6, description: 'Standard 6-Month Lock-in Investment Plan with 10% Monthly Payout credited to Wallet.' },
+    { id: 'prime-investor', planName: 'Anusha Prime Investor Plan', minimumAmount: 100000, maximumAmount: 5000000, monthlyInterestRate: 12.0, lockInMonths: 12, description: 'High-Yield 12-Month Lock-in Investment Plan with 12% Monthly Payout for high net-worth investors.' },
   ];
 
   const displayPlans = plans.length ? plans : fallbackPlans;
