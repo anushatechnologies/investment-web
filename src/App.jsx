@@ -25,8 +25,8 @@ const Support = lazy(() => import('./pages/Support'));
 const SecurityCenter = lazy(() => import('./pages/SecurityCenter'));
 const Watchlist = lazy(() => import('./pages/Watchlist'));
 const TaxCenter = lazy(() => import('./pages/TaxCenter'));
-const Nominees = lazy(() => import('./pages/Nominees'));
 const Profile = lazy(() => import('./pages/Profile'));
+
 const Settings = lazy(() => import('./pages/Settings'));
 const KycPage = lazy(() => import('./pages/KycPage'));
 const KycStatusPage = lazy(() => import('./pages/KycStatusPage'));
@@ -171,8 +171,8 @@ function App() {
         <Route path="/security" element={canOpenDashboard ? withSuspense(<SecurityCenter />) : <Navigate to={investorHome} replace />} />
         <Route path="/watchlist" element={canOpenDashboard ? withSuspense(<Watchlist />) : <Navigate to={investorHome} replace />} />
         <Route path="/tax-center" element={canOpenDashboard ? withSuspense(<TaxCenter />) : <Navigate to={investorHome} replace />} />
-        <Route path="/nominees" element={canOpenDashboard ? withSuspense(<Nominees />) : <Navigate to={investorHome} replace />} />
         <Route path="/settings" element={canOpenDashboard ? withSuspense(<Settings />) : <Navigate to={investorHome} replace />} />
+
         
         {/* Always accessible routes for onboarding users */}
         <Route path="/support" element={withSuspense(<Support />)} />

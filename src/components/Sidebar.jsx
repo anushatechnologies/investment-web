@@ -17,7 +17,6 @@ import {
   KeyRound,
   CheckCircle2,
   ChevronRight,
-  ClipboardList,
   Landmark,
   Target,
   Sparkles,
@@ -50,7 +49,6 @@ const navigationItems = [
   { label: 'Security', path: '/security', icon: KeyRound, color: 'from-rose-400 to-pink-500' },
   { label: 'Watchlist', path: '/watchlist', icon: Target, color: 'from-fuchsia-400 to-purple-500' },
   { label: 'Tax', path: '/tax-center', icon: FileText, color: 'from-emerald-400 to-cyan-500' },
-  { label: 'Nominees', path: '/nominees', icon: ClipboardList, color: 'from-amber-400 to-yellow-500' },
   { label: 'Support', path: '/support', icon: LifeBuoy, color: 'from-indigo-400 to-blue-500' },
   { label: 'Settings', path: '/settings', icon: Settings, color: 'from-slate-400 to-slate-500' },
 ];
