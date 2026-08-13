@@ -3,7 +3,7 @@
  * Handles all communication with the Anusha Trade backend.
  */
 
-const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.anushatrade.com';
+const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 const FIREBASE_OTP_TEST_MODE = import.meta.env.VITE_FIREBASE_OTP_TEST_MODE === 'true';
 
