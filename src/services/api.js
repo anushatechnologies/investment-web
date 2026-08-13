@@ -1162,6 +1162,26 @@ export function adminGetPendingWithdrawals() {
   return request('/api/admin/withdrawals/pending', { auth: true });
 }
 
+export function adminGetAllWithdrawals() {
+  return request('/api/admin/withdrawals/all', { auth: true });
+}
+
+export function adminReviewWithdrawal(withdrawalId) {
+  return request(`/api/admin/withdrawals/${withdrawalId}/review`, { method: 'POST', auth: true });
+}
+
+export function adminGetLedger() {
+  return request('/api/admin/ledger', { auth: true });
+}
+
+export function adminGetLedgerDetails(transactionId) {
+  return request(`/api/admin/ledger/transactions/${transactionId}`, { auth: true });
+}
+
+export function adminAdjustLedger({ userId, amount, reason }) {
+  return request('/api/admin/ledger/adjust', { method: 'POST', body: { userId, amount, reason }, auth: true });
+}
+
 export function adminGetWithdrawalSettings() {
   return request('/api/admin/withdrawals/settings', { auth: true });
 }
