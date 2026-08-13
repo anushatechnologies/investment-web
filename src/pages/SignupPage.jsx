@@ -324,6 +324,16 @@ function SignupPage({ onLogin }) {
     }
   };
 
+  const handlePrevStep = () => {
+    setError('');
+    setStep((currentStep) => {
+      if (currentStep === STEPS.PASSWORD && (signupMode === 'email' || emailForOtp)) {
+        return STEPS.PROFILE;
+      }
+      return Math.max(STEPS.MOBILE, currentStep - 1);
+    });
+  };
+
   const handleProfileStep = (e) => {
     e.preventDefault();
     if (!fullName.trim()) {
@@ -335,7 +345,12 @@ function SignupPage({ onLogin }) {
       return;
     }
     setError('');
-    setStep(STEPS.EMAIL);
+    if (signupMode === 'email' || emailForOtp) {
+      if (!email) setEmail(emailForOtp);
+      setStep(STEPS.PASSWORD);
+    } else {
+      setStep(STEPS.EMAIL);
+    }
   };
 
   const handleEmailStep = (e) => {
@@ -584,7 +599,7 @@ function SignupPage({ onLogin }) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.3),transparent_40%)]" />
           <div className="relative flex items-center justify-between">
             {step > STEPS.MOBILE && step < STEPS.SUCCESS ? (
-              <button onClick={() => { setError(''); setStep((s) => s - 1); }} className="rounded-full p-2 transition hover:bg-white/10">
+              <button onClick={handlePrevStep} className="rounded-full p-2 transition hover:bg-white/10">
                 <ArrowLeft className="h-5 w-5" />
               </button>
             ) : <div className="h-9 w-9" />}
