@@ -47,6 +47,14 @@ const AdminSupport = lazy(() => import('./pages/AdminSupportPage'));
 const AdminReports = lazy(() => import('./pages/ReportsPage'));
 const AdminSettings = lazy(() => import('./pages/SettingsPage'));
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
+const AdminPlans = lazy(() => import('./pages/AdminPlansPage'));
+const AdminKyc = lazy(() => import('./pages/AdminKycPage'));
+const AdminBankAccounts = lazy(() => import('./pages/AdminBankAccountsPage'));
+const AdminTransactions = lazy(() => import('./pages/AdminTransactionsPage'));
+const AdminMaturities = lazy(() => import('./pages/AdminMaturitiesPage'));
+const AdminNotificationsCreate = lazy(() => import('./pages/AdminNotificationsCreatePage'));
+const AdminRoles = lazy(() => import('./pages/AdminRolesPage'));
+const AdminAuditLogs = lazy(() => import('./pages/AdminAuditLogsPage'));
 
 const AUTH_STORAGE_KEY = 'anusha-invest-hub-auth-role'; // kept for backward compat, also used in api.js
 
@@ -197,6 +205,14 @@ function App() {
         <Route path="payment-verification" element={withSuspense(<AdminPaymentVerification />)} />
         <Route path="user-management" element={withSuspense(<AdminUserManagement />)} />
         <Route path="users/:userId" element={withSuspense(<AdminUser360 />)} />
+        <Route path="plans" element={withSuspense(<AdminPlans />)} />
+        <Route path="kyc" element={withSuspense(<AdminKyc />)} />
+        <Route path="bank-accounts" element={withSuspense(<AdminBankAccounts />)} />
+        <Route path="transactions" element={withSuspense(<AdminTransactions />)} />
+        <Route path="maturities" element={withSuspense(<AdminMaturities />)} />
+        <Route path="notifications/create" element={withSuspense(<AdminNotificationsCreate />)} />
+        <Route path="roles" element={withSuspense(<AdminRoles />)} />
+        <Route path="audit-logs" element={withSuspense(<AdminAuditLogs />)} />
         <Route path="support" element={withSuspense(<AdminSupport />)} />
         <Route path="reports" element={withSuspense(<AdminReports />)} />
         <Route path="settings" element={withSuspense(<AdminSettings />)} />

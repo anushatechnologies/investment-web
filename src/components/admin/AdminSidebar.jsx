@@ -38,26 +38,38 @@ const navigationItems = [
     items: [
       { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
       { label: 'Investors', path: '/admin/investors', icon: Users },
-      { label: 'Investments', path: '/admin/investments', icon: BriefcaseBusiness },
+      { label: 'User Directory', path: '/admin/user-management', icon: UserCog },
+      { label: 'Investment Plans', path: '/admin/plans', icon: BriefcaseBusiness },
+      { label: 'Investments', path: '/admin/investments', icon: Activity },
       { label: 'Revenue', path: '/admin/revenue', icon: TrendingUp },
     ],
   },
   {
-    group: 'Operations',
+    group: 'Financial Engine',
     items: [
-      { label: 'Withdrawals', path: '/admin/withdrawals', icon: Wallet },
       { label: 'Payment Verification', path: '/admin/payment-verification', icon: Receipt },
-      { label: 'Referral Statistics', path: '/admin/referrals', icon: ArrowRightLeft },
-      { label: 'Fraud Monitoring', path: '/admin/fraud-monitoring', icon: AlertTriangle },
-      { label: 'Support Tickets', path: '/admin/support', icon: LifeBuoy },
+      { label: 'Withdrawals', path: '/admin/withdrawals', icon: Wallet },
+      { label: 'Bank Accounts', path: '/admin/bank-accounts', icon: ShieldCheck },
+      { label: 'Ledger & Transactions', path: '/admin/transactions', icon: ArrowRightLeft },
+      { label: 'Upcoming Maturities', path: '/admin/maturities', icon: TrendingUp },
     ],
   },
   {
-    group: 'Control',
+    group: 'Communication & Risk',
     items: [
-      { label: 'User Management', path: '/admin/user-management', icon: UserCog },
-      { label: 'Reports', path: '/admin/reports', icon: ShieldCheck },
-      { label: 'Settings', path: '/admin/settings', icon: Settings },
+      { label: 'Notification Center', path: '/admin/notifications/create', icon: LifeBuoy },
+      { label: 'Support Tickets', path: '/admin/support', icon: LifeBuoy },
+      { label: 'Fraud Monitoring', path: '/admin/fraud-monitoring', icon: AlertTriangle },
+      { label: 'Referrals', path: '/admin/referrals', icon: ArrowRightLeft },
+    ],
+  },
+  {
+    group: 'Control & Governance',
+    items: [
+      { label: 'Reports & Export', path: '/admin/reports', icon: ShieldCheck },
+      { label: 'Roles & Permissions', path: '/admin/roles', icon: UserCog },
+      { label: 'Audit Logs', path: '/admin/audit-logs', icon: Activity },
+      { label: 'System Settings', path: '/admin/settings', icon: Settings },
     ],
   },
 ];
