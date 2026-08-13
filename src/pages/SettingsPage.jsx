@@ -21,9 +21,9 @@ import { formatCurrency } from '../utils/formatters';
 
 const emptyPlan = {
   id: '',
-  planName: 'Anusha Milk Trade',
-  description: 'Monthly income plan with admin-managed returns.',
-  minimumAmount: 5000,
+  planName: 'Anusha Standard Growth Plan',
+  description: 'Standard 6-Month Lock-in Investment Plan with 10% Monthly Payout credited to Wallet.',
+  minimumAmount: 10000,
   maximumAmount: 1000000,
   lockInMonths: 6,
   monthlyInterestRate: 10,
@@ -190,7 +190,7 @@ function SettingsPage() {
       const loadedPlans = toArray(response);
       setPlans(loadedPlans);
       const primaryPlan =
-        loadedPlans.find((plan) => String(plan.planName || '').toLowerCase().includes('anusha milk trade')) ||
+        loadedPlans.find((plan) => String(plan.planName || '').toLowerCase().includes('anusha standard growth plan')) ||
         loadedPlans.find((plan) => plan.active !== false) ||
         loadedPlans[0];
 
