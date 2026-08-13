@@ -1409,6 +1409,27 @@ export function adminTriggerMonthlyInterestRun() {
   });
 }
 
+// ── Razorpay Payment Admin APIs ──────────────────────────────
+export function adminGetAllPayments() {
+  return request('/api/admin/payments/razorpay', { auth: true });
+}
+
+export function adminGetPaymentReconciliation() {
+  return request('/api/admin/payments/razorpay/reconciliation', { auth: true });
+}
+
+export function adminGetPaymentWebhooks() {
+  return request('/api/admin/payments/razorpay/webhooks', { auth: true });
+}
+
+export function adminRefundPayment(paymentId, { amount, reason }) {
+  return request(`/api/admin/payments/razorpay/${paymentId}/refund`, {
+    method: 'POST',
+    body: { amount, reason },
+    auth: true,
+  });
+}
+
 // ── System APIs ─────────────────────────────────────────
 export function healthCheck() {
   return request('/actuator/health');

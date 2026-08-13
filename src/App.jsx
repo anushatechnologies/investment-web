@@ -55,6 +55,7 @@ const AdminMaturities = lazy(() => import('./pages/AdminMaturitiesPage'));
 const AdminNotificationsCreate = lazy(() => import('./pages/AdminNotificationsCreatePage'));
 const AdminRoles = lazy(() => import('./pages/AdminRolesPage'));
 const AdminAuditLogs = lazy(() => import('./pages/AdminAuditLogsPage'));
+const AdminPayments = lazy(() => import('./pages/AdminPaymentsPage'));
 
 const AUTH_STORAGE_KEY = 'anusha-invest-hub-auth-role'; // kept for backward compat, also used in api.js
 
@@ -213,6 +214,7 @@ function App() {
         <Route path="notifications/create" element={withSuspense(<AdminNotificationsCreate />)} />
         <Route path="roles" element={withSuspense(<AdminRoles />)} />
         <Route path="audit-logs" element={withSuspense(<AdminAuditLogs />)} />
+        <Route path="payments" element={withSuspense(<AdminPayments />)} />
         <Route path="support" element={withSuspense(<AdminSupport />)} />
         <Route path="reports" element={withSuspense(<AdminReports />)} />
         <Route path="settings" element={withSuspense(<AdminSettings />)} />

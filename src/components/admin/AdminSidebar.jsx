@@ -47,6 +47,7 @@ const navigationItems = [
   {
     group: 'Financial Engine',
     items: [
+      { label: 'Razorpay Payments', path: '/admin/payments', icon: Receipt },
       { label: 'Payment Verification', path: '/admin/payment-verification', icon: Receipt },
       { label: 'Withdrawals', path: '/admin/withdrawals', icon: Wallet },
       { label: 'Bank Accounts', path: '/admin/bank-accounts', icon: ShieldCheck },
