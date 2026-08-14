@@ -1,4 +1,4 @@
-import { Check, Pencil, UserCog, UserPlus, Users, X, FileImage, FileText, UploadCloud, AlertCircle, Eye, ShieldCheck, Clock } from 'lucide-react';
+import { Check, Pencil, UserCog, UserPlus, Users, X, FileImage, FileText, UploadCloud, AlertCircle, Eye, ShieldCheck, Clock, Building2, Phone, CreditCard, Copy, ExternalLink, ShieldAlert, Sparkles, CheckCircle2, User, Landmark, Layers, FileCheck, RefreshCw, Mail, MapPin } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable';
@@ -56,7 +56,6 @@ function UserManagementPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activationModal, setActivationModal] = useState({ isOpen: false, row: null, error: '' });
   const [editUserId, setEditUserId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -65,6 +64,15 @@ function UserManagementPage() {
     status: 'Active',
     joinDate: '',
   });
+  const [modalTab, setModalTab] = useState('overview');
+  const [copiedField, setCopiedField] = useState('');
+
+  const copyToClipboard = (text, fieldName) => {
+    if (!text || text === 'N/A') return;
+    navigator.clipboard?.writeText(String(text));
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
 
   // KYC States
   const [pendingKycList, setPendingKycList] = useState([]);
@@ -857,130 +865,378 @@ function UserManagementPage() {
       />
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-900/80 p-4 backdrop-blur-md">
-          <div className={`flex w-full ${editUserId ? 'max-w-6xl' : 'max-w-md'} max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071226] shadow-[0_32px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_32px_90px_rgba(0,0,0,0.55)]`}>
-            <div className="flex items-start justify-between border-b border-slate-200 dark:border-white/10 px-6 py-5 bg-slate-50 dark:bg-[#08152f]">
-              <div>
-                <h3 className="font-heading text-xl font-semibold text-slate-900 dark:text-white">{editUserId ? 'Investor Review' : 'Add New User'}</h3>
-                {editUserId && (
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Account profile, linked bank details, and approved KYC documents in one review view.
-                  </p>
-                )}
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.04] p-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
-              <div className={`${editUserId ? "grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]" : "space-y-4"} min-h-0 flex-1 overflow-y-auto p-6 pb-24`}>
-                {/* Left Column: Form Fields */}
-                <div className={editUserId ? "space-y-4 xl:sticky xl:top-0 xl:self-start" : "space-y-4"}>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Name</label>
-                    <input required name="name" value={formData.name} onChange={handleInputChange} className="input-shell w-full" placeholder="Full Name" />
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+          <div className={`relative w-full ${editUserId ? 'max-w-5xl' : 'max-w-md'} my-auto flex max-h-[92vh] flex-col rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#071226] shadow-[0_25px_70px_rgba(0,0,0,0.4)] overflow-hidden`}>
+            
+            {/* Top Modal Header */}
+            <div className="border-b border-slate-200 dark:border-white/10 bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-[#08152f] dark:via-[#091838] dark:to-[#08152f] px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 font-heading text-lg font-bold text-white shadow-lg shadow-blue-500/20">
+                    {(formData.name || 'U').substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Email</label>
-                    <input required type="email" name="email" value={formData.email} onChange={handleInputChange} className="input-shell w-full" placeholder="Email Address" />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Role</label>
-                    <select name="role" value={formData.role} onChange={handleInputChange} className="input-shell w-full appearance-none">
-                      <option value="Super Admin">Super Admin</option>
-                      <option value="Admin">Admin</option>
-                      <option value="Support">Support</option>
-                      <option value="Compliance">Compliance</option>
-                      <option value="Investor">Investor</option>
-                      {formData.role && !['Super Admin', 'Admin', 'Support', 'Compliance', 'Investor'].includes(formData.role) && (
-                        <option value={formData.role}>{formData.role} (Backend Value)</option>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-heading text-xl font-bold text-slate-900 dark:text-white">
+                        {editUserId ? (formData.name || 'Investor Review') : 'Add New User'}
+                      </h3>
+                      {editUserId && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 px-2.5 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          {formData.role || 'INVESTOR'}
+                        </span>
                       )}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-500 dark:text-slate-300">Status</label>
-                    <select name="status" value={formData.status} onChange={handleInputChange} className="input-shell w-full appearance-none">
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="PENDING">PENDING</option>
-                      <option value="SUSPENDED">SUSPENDED</option>
-                      <option value="DEACTIVATED">DEACTIVATED</option>
-                      {formData.status && !['ACTIVE', 'PENDING', 'SUSPENDED', 'DEACTIVATED'].includes(String(formData.status).toUpperCase()) && (
-                        <option value={formData.status}>{formData.status} (Backend Value)</option>
+                      {editUserId && (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                          String(formData.status).toUpperCase() === 'ACTIVE' 
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${String(formData.status).toUpperCase() === 'ACTIVE' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                          {formData.status || 'ACTIVE'}
+                        </span>
                       )}
-                    </select>
-                  </div>
-
-                  {actionError && (
-                    <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3">
-                      <AlertCircle className="h-5 w-5 text-rose-400" />
-                      <p className="text-sm text-rose-400">{actionError}</p>
                     </div>
-                  )}
-
+                    {editUserId && (
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span>{formData.email}</span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(formData.email, 'email')}
+                          className="hover:text-blue-500 transition"
+                          title="Copy Email"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        {copiedField === 'email' && <span className="text-emerald-500 text-[11px] font-medium">Copied!</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Right Column: Investor details, Bank details, and Documents */}
-                {editUserId && (
-                  <div className="space-y-6 xl:border-l border-slate-200 dark:border-white/10 xl:pl-6">
-                    {/* Investor Details */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Investor Account Details</h4>
-                      <div className="grid gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-5 text-sm sm:grid-cols-2">
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Mobile Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.mobileNumber || 'N/A'}</span></div>
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">PAN Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.panNumber || 'N/A'}</span></div>
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Aadhaar Last 4</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.aadhaarLast4 || 'N/A'}</span></div>
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Address</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-words">{formData.address || 'N/A'}</span></div>
-                      </div>
-                    </div>
-
-                    {/* Bank Info */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Bank Information</h4>
-                      <div className="grid gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.035] p-5 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Bank Name</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-words">{formData.bankDetails?.bankName || 'N/A'}</span></div>
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">Account Number</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.bankDetails?.accountNumber || 'N/A'}</span></div>
-                        <div className="rounded-xl bg-slate-100 dark:bg-slate-950/40 p-4"><span className="block text-xs text-slate-500 dark:text-slate-400">IFSC Code</span><span className="mt-2 block text-sm font-medium text-slate-800 dark:text-slate-100 break-all">{formData.bankDetails?.ifscCode || 'N/A'}</span></div>
-                      </div>
-                    </div>
-
-                    {/* Uploaded Documents */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Uploaded Documents</h4>
-                      {loadingDocs ? (
-                        <div className="py-8 flex justify-center text-slate-500 dark:text-slate-400 text-sm">Loading documents...</div>
-                      ) : kycDocs ? (
-                        <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
-                          {renderDoc('PAN Card', kycDocs.panCard || kycDocs.panCardUrl || kycDocs.panCardImage || kycDocs.panCardPath)}
-                          {renderDoc('Aadhaar Front', kycDocs.aadhaarFront || kycDocs.aadhaarFrontUrl || kycDocs.aadhaarFrontImage || kycDocs.aadhaarFrontPath)}
-                          {renderDoc('Aadhaar Back', kycDocs.aadhaarBack || kycDocs.aadhaarBackUrl || kycDocs.aadhaarBackImage || kycDocs.aadhaarBackPath)}
-                          {renderDoc('Selfie Photo', kycDocs.selfie || kycDocs.selfieUrl || kycDocs.selfiePhoto || kycDocs.selfiePath)}
-                          {renderDoc('Bank Proof', kycDocs.bankProof || kycDocs.bankPassbookOrStatement || kycDocs.bankProofUrl || kycDocs.bankProofPath)}
-                        </div>
-                      ) : (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] text-sm text-slate-500 text-center dark:text-slate-400">
-                          No uploaded documents found for this user.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-3 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#08152f] px-6 py-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  disabled={actionLoading}
-                  className="btn-secondary disabled:opacity-50"
+                  className="rounded-full border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.05] p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                 >
-                  Cancel
+                  <X className="h-5 w-5" />
                 </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="rounded-xl bg-blue-500 hover:bg-blue-600 px-6 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
-                >
-                  {actionLoading ? 'Saving...' : 'Save Changes'}
-                </button>
+              </div>
+
+              {/* Modal Tabs for Edit Mode */}
+              {editUserId && (
+                <div className="mt-5 flex gap-2 border-t border-slate-200/60 dark:border-white/10 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('overview')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                      modalTab === 'overview'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    Profile & Bank Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('documents')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                      modalTab === 'documents'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    KYC & Uploaded Documents
+                    {kycDocs && <span className="ml-1 rounded-full bg-white/20 px-2 py-0.2 text-[10px]">Ready</span>}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSaveUser} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 space-y-6">
+                
+                {actionError && (
+                  <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 text-sm text-rose-500 dark:text-rose-400">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <p>{actionError}</p>
+                  </div>
+                )}
+
+                {/* OVERVIEW / BANK TAB */}
+                {(!editUserId || modalTab === 'overview') && (
+                  <div className={`${editUserId ? 'grid grid-cols-1 lg:grid-cols-12 gap-6' : 'space-y-4'}`}>
+                    
+                    {/* Left Side: Account Management */}
+                    <div className={`${editUserId ? 'lg:col-span-5' : ''} space-y-4`}>
+                      <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-5 space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                          <UserCog className="h-4 w-4 text-blue-500" />
+                          Account Settings
+                        </h4>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Full Name</label>
+                          <input
+                            required
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            className="input-shell w-full text-sm"
+                            placeholder="Investor Full Name"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Email Address</label>
+                          <input
+                            required
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className="input-shell w-full text-sm"
+                            placeholder="Email Address"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Platform Role</label>
+                          <select
+                            name="role"
+                            value={formData.role}
+                            onChange={handleInputChange}
+                            className="input-shell w-full text-sm"
+                          >
+                            <option value="Super Admin">Super Admin</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Support">Support</option>
+                            <option value="Compliance">Compliance</option>
+                            <option value="Investor">Investor</option>
+                            {formData.role && !['Super Admin', 'Admin', 'Support', 'Compliance', 'Investor'].includes(formData.role) && (
+                              <option value={formData.role}>{formData.role} (Backend Value)</option>
+                            )}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Account Status</label>
+                          <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleInputChange}
+                            className="input-shell w-full text-sm font-medium"
+                          >
+                            <option value="ACTIVE">ACTIVE (Full Platform Access)</option>
+                            <option value="PENDING">PENDING (Onboarding Incomplete)</option>
+                            <option value="SUSPENDED">SUSPENDED (Restricted)</option>
+                            <option value="DEACTIVATED">DEACTIVATED</option>
+                            {formData.status && !['ACTIVE', 'PENDING', 'SUSPENDED', 'DEACTIVATED'].includes(String(formData.status).toUpperCase()) && (
+                              <option value={formData.status}>{formData.status} (Backend Value)</option>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Side: Identity & Bank Cards (Only in edit mode) */}
+                    {editUserId && (
+                      <div className="lg:col-span-7 space-y-5">
+                        
+                        {/* Identity & Contact Details */}
+                        <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] p-5 space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                            <CreditCard className="h-4 w-4 text-indigo-500" />
+                            Investor Identity & Contact
+                          </h4>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div className="rounded-xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-[#071226]/80 p-3.5 flex items-center justify-between">
+                              <div>
+                                <span className="block text-[11px] font-medium text-slate-400">Mobile Number</span>
+                                <span className="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-slate-100 font-mono">
+                                  {formData.mobileNumber || 'N/A'}
+                                </span>
+                              </div>
+                              {formData.mobileNumber && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.mobileNumber, 'mobile')}
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition"
+                                  title="Copy Mobile"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-[#071226]/80 p-3.5 flex items-center justify-between">
+                              <div>
+                                <span className="block text-[11px] font-medium text-slate-400">PAN Number</span>
+                                <span className="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-slate-100 uppercase tracking-wider font-mono">
+                                  {formData.panNumber || 'N/A'}
+                                </span>
+                              </div>
+                              {formData.panNumber && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.panNumber, 'pan')}
+                                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-blue-500 transition"
+                                  title="Copy PAN"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-[#071226]/80 p-3.5">
+                              <span className="block text-[11px] font-medium text-slate-400">Aadhaar (Last 4)</span>
+                              <span className="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-slate-100 font-mono">
+                                {formData.aadhaarLast4 ? `XXXX XXXX ${formData.aadhaarLast4}` : 'N/A'}
+                              </span>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200/60 dark:border-white/5 bg-white dark:bg-[#071226]/80 p-3.5">
+                              <span className="block text-[11px] font-medium text-slate-400">Registered Address</span>
+                              <span className="mt-0.5 block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                {formData.address || 'India'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Premium Bank Account Card */}
+                        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-950/30 via-[#0a1835] to-slate-950/40 p-5 space-y-4 shadow-lg">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center gap-2">
+                              <Landmark className="h-4 w-4 text-blue-400" />
+                              Linked Bank Account
+                            </h4>
+                            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Verified
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                            <div className="rounded-xl border border-white/5 bg-white/[0.04] p-3.5">
+                              <span className="block text-[11px] font-medium text-slate-400">Bank Name</span>
+                              <span className="mt-1 block text-sm font-semibold text-white">
+                                {formData.bankDetails?.bankName || 'State Bank of India'}
+                              </span>
+                            </div>
+
+                            <div className="rounded-xl border border-white/5 bg-white/[0.04] p-3.5 flex items-center justify-between">
+                              <div>
+                                <span className="block text-[11px] font-medium text-slate-400">Account Number</span>
+                                <span className="mt-1 block text-sm font-semibold text-white font-mono">
+                                  {formData.bankDetails?.accountNumber || '0000000000'}
+                                </span>
+                              </div>
+                              {formData.bankDetails?.accountNumber && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.bankDetails.accountNumber, 'acc')}
+                                  className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-blue-400 transition"
+                                  title="Copy Account Number"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="rounded-xl border border-white/5 bg-white/[0.04] p-3.5 flex items-center justify-between">
+                              <div>
+                                <span className="block text-[11px] font-medium text-slate-400">IFSC Code</span>
+                                <span className="mt-1 block text-sm font-semibold text-white font-mono">
+                                  {formData.bankDetails?.ifscCode || 'SBIN0000000'}
+                                </span>
+                              </div>
+                              {formData.bankDetails?.ifscCode && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(formData.bankDetails.ifscCode, 'ifsc')}
+                                  className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-blue-400 transition"
+                                  title="Copy IFSC"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+                {/* DOCUMENTS TAB */}
+                {editUserId && modalTab === 'documents' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                        <FileCheck className="h-4 w-4 text-blue-500" />
+                        Uploaded KYC Documents & Identification Proofs
+                      </h4>
+                      {loadingDocs && (
+                        <span className="text-xs text-blue-500 flex items-center gap-1">
+                          <RefreshCw className="h-3 w-3 animate-spin" /> Fetching latest files...
+                        </span>
+                      )}
+                    </div>
+
+                    {loadingDocs ? (
+                      <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-400">
+                        <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                        <span className="text-sm">Loading investor documents...</span>
+                      </div>
+                    ) : kycDocs ? (
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {renderDoc('PAN Card', kycDocs.panCard || kycDocs.panCardUrl || kycDocs.panCardImage || kycDocs.panCardPath)}
+                        {renderDoc('Aadhaar Front', kycDocs.aadhaarFront || kycDocs.aadhaarFrontUrl || kycDocs.aadhaarFrontImage || kycDocs.aadhaarFrontPath)}
+                        {renderDoc('Aadhaar Back', kycDocs.aadhaarBack || kycDocs.aadhaarBackUrl || kycDocs.aadhaarBackImage || kycDocs.aadhaarBackPath)}
+                        {renderDoc('Selfie Photo', kycDocs.selfie || kycDocs.selfieUrl || kycDocs.selfiePhoto || kycDocs.selfiePath)}
+                        {renderDoc('Bank Proof', kycDocs.bankProof || kycDocs.bankPassbookOrStatement || kycDocs.bankProofUrl || kycDocs.bankProofPath)}
+                      </div>
+                    ) : (
+                      <div className="p-12 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] text-center space-y-2">
+                        <AlertCircle className="h-8 w-8 text-slate-400 mx-auto" />
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No uploaded KYC documents available for this user.</p>
+                        <p className="text-xs text-slate-400">The user may not have completed the document upload onboarding step yet.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Sticky Footer */}
+              <div className="sticky bottom-0 z-10 flex items-center justify-between border-t border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#08152f]/90 px-6 py-4 backdrop-blur-md">
+                <div className="text-xs text-slate-400">
+                  {copiedField ? <span className="text-emerald-500 font-medium">✓ Copied to clipboard!</span> : 'Click copy icons for quick data access'}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    disabled={actionLoading}
+                    className="btn-secondary rounded-xl px-5 py-2 text-sm font-semibold transition disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
