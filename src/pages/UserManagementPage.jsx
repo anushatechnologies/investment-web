@@ -56,6 +56,7 @@ function UserManagementPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activationModal, setActivationModal] = useState({ isOpen: false, row: null, error: '' });
   const [editUserId, setEditUserId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
