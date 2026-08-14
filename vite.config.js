@@ -7,9 +7,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 1600,
   },
   server: {
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'https://api.anushatrade.com',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
       },
