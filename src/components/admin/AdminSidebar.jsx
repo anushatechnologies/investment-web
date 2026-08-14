@@ -117,7 +117,11 @@ function AdminSidebarContent({ onLogout, onClose }) {
             variant="rounded"
             src={BRAND_LOGO_PRIMARY}
             alt="Anusha Trade"
-            imgProps={{ onError: (e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; } }}
+            slotProps={{
+              img: {
+                onError: (e) => { e.currentTarget.src = BRAND_LOGO_FALLBACK; },
+              },
+            }}
             sx={{ width: 54, height: 54, bgcolor: 'white', borderRadius: '18px', p: 0.45, boxShadow: '0 12px 24px rgba(15,23,42,0.12)' }}
           />
           <div>
@@ -251,13 +255,17 @@ function AdminSidebarContent({ onLogout, onClose }) {
                     >
                       <Icon className="h-4.5 w-4.5 transition-transform duration-200 group-hover:scale-110" />
                     </ListItemIcon>
-                    <ListItemText 
-                      primary={label} 
-                      primaryTypographyProps={{ 
-                        fontSize: 13.5, 
-                        fontWeight: isActive ? 700 : 550,
-                        letterSpacing: '0.01em'
-                      }} 
+                    <ListItemText
+                      primary={label}
+                      slotProps={{
+                        primary: {
+                          sx: {
+                            fontSize: 13.5,
+                            fontWeight: isActive ? 700 : 550,
+                            letterSpacing: '0.01em',
+                          },
+                        },
+                      }}
                     />
                     {isActive && <ChevronRight className="h-3.5 w-3.5 opacity-80" />}
                   </ListItemButton>

@@ -15,6 +15,66 @@ export function formatINR(amount) {
   }).format(numericAmount);
 }
 
+export function formatCurrency(amount) {
+  return formatINR(amount);
+}
+
+export function formatCompactCurrency(amount) {
+  if (amount === null || amount === undefined || isNaN(Number(amount))) {
+    return '₹0';
+  }
+
+  const numericAmount = Number(amount);
+  const abs = Math.abs(numericAmount);
+  const formatter = new Intl.NumberFormat('en-IN', {
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 1,
+  });
+
+  return `₹${formatter.format(abs)}`;
+}
+
+export function formatNumber(value) {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return '0';
+  }
+
+  return new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 0,
+  }).format(Number(value));
+}
+
+export function formatPercent(value) {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return '0%';
+  }
+
+  const numericValue = Number(value);
+  const sign = numericValue > 0 ? '+' : '';
+  return `${sign}${numericValue.toFixed(1)}%`;
+}
+
+export function formatShortTick(value) {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return '0';
+  }
+
+  const numericValue = Number(value);
+  const abs = Math.abs(numericValue);
+
+  if (abs >= 10000000) {
+    return `${(numericValue / 10000000).toFixed(1)}Cr`;
+  }
+  if (abs >= 100000) {
+    return `${(numericValue / 100000).toFixed(1)}L`;
+  }
+  if (abs >= 1000) {
+    return `${(numericValue / 1000).toFixed(1)}K`;
+  }
+  return String(Math.round(numericValue));
+}
+
 /**
  * Standardized Financial Status Color & Label Mapper
  */
