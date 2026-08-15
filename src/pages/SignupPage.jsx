@@ -141,7 +141,9 @@ export default function SignupPage({ onLogin }) {
       setStep(2);
       setTimer(30);
 
-      if (backendResp?.otp) {
+      if (firebaseTriggered) {
+        setSuccessMsg(`OTP sent via SMS to +91 ${mobileNumber}. Please check your phone.`);
+      } else if (backendResp?.otp) {
         setSuccessMsg(`OTP sent to +91 ${mobileNumber}. (Dev Preview: ${backendResp.otp})`);
       } else {
         setSuccessMsg(`OTP sent to +91 ${mobileNumber}`);
