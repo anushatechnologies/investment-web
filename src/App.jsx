@@ -1,47 +1,41 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { CircularProgress, Stack, Typography } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import Layout from './components/Layout';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminLoginPage from './pages/AdminLoginPage';
 import TermsAndConditionsPage from './pages/TermsAndConditionsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import ForgotMpinPage from './pages/ForgotMpinPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import {
   clearAuthData,
   getAccessToken,
   getAuthRole,
-  getStoredOnboardingStatus,
-  hydrateInvestorSessionState,
   saveAuthData,
 } from './services/api';
-import { resolveInvestorRoute, isOnboardingComplete } from './utils/onboardingRouter';
 
-// Investor Pages
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Investments = lazy(() => import('./pages/Investments'));
-const Wallet = lazy(() => import('./pages/Wallet'));
-const ReferralNetwork = lazy(() => import('./pages/ReferralNetwork'));
-const Withdraw = lazy(() => import('./pages/Withdraw'));
-const PaymentReceipts = lazy(() => import('./pages/PaymentReceipts'));
-const Statements = lazy(() => import('./pages/Statements'));
-const Notifications = lazy(() => import('./pages/Notifications'));
-const InvestmentStatus = lazy(() => import('./pages/InvestmentStatus'));
-const Support = lazy(() => import('./pages/Support'));
-const SecurityCenter = lazy(() => import('./pages/SecurityCenter'));
-const Watchlist = lazy(() => import('./pages/Watchlist'));
-const TaxCenter = lazy(() => import('./pages/TaxCenter'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Nominees = lazy(() => import('./pages/Nominees'));
-
-// Onboarding Pages
-const KycPage = lazy(() => import('./pages/KycPage'));
-const KycStatusPage = lazy(() => import('./pages/KycStatusPage'));
-const BankLinkPage = lazy(() => import('./pages/BankLinkPage'));
-const AccountActivatePage = lazy(() => import('./pages/AccountActivatePage'));
-const SetupMpinPage = lazy(() => import('./pages/SetupMpinPage'));
+// Admin Sub-pages
+const AdminDashboard = lazy(() => import('./pages/DashboardPage'));
+const AdminInvestors = lazy(() => import('./pages/InvestorsPage'));
+const AdminInvestments = lazy(() => import('./pages/InvestmentsPage'));
+const AdminRevenue = lazy(() => import('./pages/RevenuePage'));
+const AdminWithdrawals = lazy(() => import('./pages/WithdrawalsPage'));
+const AdminReferrals = lazy(() => import('./pages/ReferralStatisticsPage'));
+const AdminFraud = lazy(() => import('./pages/FraudMonitoringPage'));
+const AdminPaymentVerification = lazy(() => import('./pages/PaymentVerificationPage'));
+const AdminUserManagement = lazy(() => import('./pages/UserManagementPage'));
+const AdminUser360 = lazy(() => import('./pages/User360Page'));
+const AdminPlans = lazy(() => import('./pages/AdminPlansPage'));
+const AdminKyc = lazy(() => import('./pages/AdminKycPage'));
+const AdminBankAccounts = lazy(() => import('./pages/AdminBankAccountsPage'));
+const AdminTransactions = lazy(() => import('./pages/AdminTransactionsPage'));
+const AdminMaturities = lazy(() => import('./pages/AdminMaturitiesPage'));
+const AdminNotificationsCreate = lazy(() => import('./pages/AdminNotificationsCreatePage'));
+const AdminRoles = lazy(() => import('./pages/AdminRolesPage'));
+const AdminAuditLogs = lazy(() => import('./pages/AdminAuditLogsPage'));
+const AdminPayments = lazy(() => import('./pages/AdminPaymentsPage'));
+const AdminSupport = lazy(() => import('./pages/AdminSupportPage'));
+const AdminReports = lazy(() => import('./pages/ReportsPage'));
+const AdminSettings = lazy(() => import('./pages/SettingsPage'));
 
 function RouteLoader() {
   return (
@@ -53,119 +47,91 @@ function RouteLoader() {
     >
       <CircularProgress color="primary" />
       <Typography variant="body2" color="text.secondary" fontWeight={600}>
-        Loading investor workspace...
+        Loading Admin Workspace...
       </Typography>
     </Stack>
   );
 }
 
 export default function App() {
-  const [authRole, setAuthRole] = useState(() => getAuthRole() || (getAccessToken() ? 'user' : null));
-  const [investorStatus, setInvestorStatus] = useState(() => getStoredOnboardingStatus() || {});
+  const [authRole, setAuthRole] = useState(() => getAuthRole() || (getAccessToken() ? 'admin' : null));
 
   const handleLogin = (role) => {
-    setAuthRole(role);
-    setInvestorStatus(getStoredOnboardingStatus() || {});
+    setAuthRole(role || 'admin');
   };
 
   const handleLogout = () => {
     clearAuthData();
     setAuthRole(null);
-    setInvestorStatus({});
   };
 
-  useEffect(() => {
-    if (!authRole) {
-      setInvestorStatus({});
-      return;
-    }
-
-    setInvestorStatus(getStoredOnboardingStatus() || {});
-
-    let active = true;
-    hydrateInvestorSessionState()
-      .then((sessionState) => {
-        if (!active || !sessionState) return;
-        saveAuthData(sessionState);
-        setInvestorStatus(getStoredOnboardingStatus() || {});
-      })
-      .catch(() => {
-        if (!active) return;
-        setInvestorStatus(getStoredOnboardingStatus() || {});
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [authRole]);
-
   const withSuspense = (node) => <Suspense fallback={<RouteLoader />}>{node}</Suspense>;
-  const userAuthenticated = Boolean(authRole && getAccessToken());
-  const investorHome = resolveInvestorRoute(investorStatus);
-  const canOpenDashboard = isOnboardingComplete(investorStatus);
+  const adminAuthenticated = Boolean(authRole === 'admin' || (getAccessToken() && authRole !== 'user'));
 
   return (
     <Routes>
-      {/* Public Auth Routes */}
+      {/* Admin Authentication Routes */}
+      <Route
+        path="/admin/login"
+        element={
+          adminAuthenticated ? <Navigate to="/admin" replace /> : withSuspense(<AdminLoginPage onLogin={handleLogin} />)
+        }
+      />
+      <Route
+        path="/admin-login"
+        element={
+          adminAuthenticated ? <Navigate to="/admin" replace /> : withSuspense(<AdminLoginPage onLogin={handleLogin} />)
+        }
+      />
       <Route
         path="/login"
         element={
-          userAuthenticated ? <Navigate to={investorHome || '/dashboard'} replace /> : <LoginPage onLogin={handleLogin} />
+          adminAuthenticated ? <Navigate to="/admin" replace /> : withSuspense(<AdminLoginPage onLogin={handleLogin} />)
         }
       />
-      <Route
-        path="/signup"
-        element={
-          userAuthenticated ? <Navigate to={investorHome || '/dashboard'} replace /> : <SignupPage onLogin={handleLogin} />
-        }
-      />
-      <Route path="/forgot-mpin" element={<ForgotMpinPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
 
-      {/* Protected Investor Portal Routes */}
+      {/* Admin Panel Layout & Sub-pages */}
       <Route
+        path="/admin"
         element={
-          userAuthenticated ? <Layout onLogout={handleLogout} /> : <Navigate to="/login" replace />
+          adminAuthenticated ? (
+            <AdminLayout onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/admin/login" replace />
+          )
         }
       >
-        <Route index element={canOpenDashboard ? withSuspense(<Dashboard />) : <Navigate to={investorHome} replace />} />
-        <Route path="/dashboard" element={canOpenDashboard ? withSuspense(<Dashboard />) : <Navigate to={investorHome} replace />} />
-        
-        {/* Onboarding Flow */}
-        <Route path="/kyc" element={withSuspense(<KycPage />)} />
-        <Route path="/kyc/status" element={withSuspense(<KycStatusPage />)} />
-        <Route path="/bank-link" element={withSuspense(<BankLinkPage />)} />
-        <Route path="/bank/link" element={withSuspense(<BankLinkPage />)} />
-        <Route path="/setup-mpin" element={withSuspense(<SetupMpinPage />)} />
-        <Route path="/activate" element={withSuspense(<AccountActivatePage />)} />
-
-        {/* Wealth & Portfolio */}
-        <Route path="/investments" element={withSuspense(<Investments />)} />
-        <Route path="/investments/status" element={withSuspense(<InvestmentStatus />)} />
-        <Route path="/investment-status" element={withSuspense(<InvestmentStatus />)} />
-        <Route path="/wallet" element={withSuspense(<Wallet />)} />
-        <Route path="/withdraw" element={withSuspense(<Withdraw />)} />
-        <Route path="/receipts" element={withSuspense(<PaymentReceipts />)} />
-        <Route path="/payment-receipts" element={withSuspense(<PaymentReceipts />)} />
-        <Route path="/statements" element={withSuspense(<Statements />)} />
-
-        {/* Network & Hub */}
-        <Route path="/network" element={withSuspense(<ReferralNetwork />)} />
-        <Route path="/referral-network" element={withSuspense(<ReferralNetwork />)} />
-        <Route path="/notifications" element={withSuspense(<Notifications />)} />
-        <Route path="/watchlist" element={withSuspense(<Watchlist />)} />
-        <Route path="/tax-center" element={withSuspense(<TaxCenter />)} />
-        <Route path="/support" element={withSuspense(<Support />)} />
-        <Route path="/security" element={withSuspense(<SecurityCenter />)} />
-        <Route path="/profile" element={withSuspense(<Profile />)} />
-        <Route path="/settings" element={withSuspense(<Settings />)} />
-        <Route path="/nominees" element={withSuspense(<Nominees />)} />
+        <Route index element={withSuspense(<AdminDashboard />)} />
+        <Route path="dashboard" element={withSuspense(<AdminDashboard />)} />
+        <Route path="investors" element={withSuspense(<AdminInvestors />)} />
+        <Route path="investments" element={withSuspense(<AdminInvestments />)} />
+        <Route path="revenue" element={withSuspense(<AdminRevenue />)} />
+        <Route path="withdrawals" element={withSuspense(<AdminWithdrawals />)} />
+        <Route path="referrals" element={withSuspense(<AdminReferrals />)} />
+        <Route path="fraud-monitoring" element={withSuspense(<AdminFraud />)} />
+        <Route path="payment-verification" element={withSuspense(<AdminPaymentVerification />)} />
+        <Route path="user-management" element={withSuspense(<AdminUserManagement />)} />
+        <Route path="users" element={withSuspense(<AdminUserManagement />)} />
+        <Route path="users/:userId" element={withSuspense(<AdminUser360 />)} />
+        <Route path="plans" element={withSuspense(<AdminPlans />)} />
+        <Route path="kyc" element={withSuspense(<AdminKyc />)} />
+        <Route path="bank-accounts" element={withSuspense(<AdminBankAccounts />)} />
+        <Route path="transactions" element={withSuspense(<AdminTransactions />)} />
+        <Route path="maturities" element={withSuspense(<AdminMaturities />)} />
+        <Route path="notifications/create" element={withSuspense(<AdminNotificationsCreate />)} />
+        <Route path="roles" element={withSuspense(<AdminRoles />)} />
+        <Route path="audit-logs" element={withSuspense(<AdminAuditLogs />)} />
+        <Route path="payments" element={withSuspense(<AdminPayments />)} />
+        <Route path="support" element={withSuspense(<AdminSupport />)} />
+        <Route path="reports" element={withSuspense(<AdminReports />)} />
+        <Route path="settings" element={withSuspense(<AdminSettings />)} />
       </Route>
 
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to={userAuthenticated ? '/dashboard' : '/login'} replace />} />
+      {/* Global Fallback: Route straight to Admin panel */}
+      <Route path="*" element={<Navigate to={adminAuthenticated ? '/admin' : '/admin/login'} replace />} />
     </Routes>
   );
 }

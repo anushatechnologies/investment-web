@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { adminLogin, adminVerify2fa, saveAuthData } from '../services/api';
 import { Shield, KeyRound, Lock, UserCheck, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-export default function AdminLoginPage() {
+export default function AdminLoginPage({ onLogin }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState('admin@anushabazaar.com');
   const [password, setPassword] = useState('Admin@123');
@@ -28,10 +28,11 @@ export default function AdminLoginPage() {
         setSuccessMsg(res.message || '2FA code required. Enter code 123456');
       } else if (res.accessToken || res.token) {
         saveAuthData(res);
+        if (onLogin) onLogin('admin');
         setSuccessMsg('Admin authentication successful! Redirecting...');
         setTimeout(() => {
-          navigate('/admin/users');
-        }, 800);
+          navigate('/admin');
+        }, 500);
       }
     } catch (err) {
       setError(err?.data?.message || err?.message || 'Admin authentication failed');
@@ -49,10 +50,11 @@ export default function AdminLoginPage() {
       const res = await adminVerify2fa({ tempToken, code: twoFactorCode.trim() });
       if (res.accessToken || res.token) {
         saveAuthData(res);
+        if (onLogin) onLogin('admin');
         setSuccessMsg('2FA verified successfully! Redirecting...');
         setTimeout(() => {
-          navigate('/admin/users');
-        }, 800);
+          navigate('/admin');
+        }, 500);
       }
     } catch (err) {
       setError(err?.data?.message || err?.message || 'Invalid 2FA code');
