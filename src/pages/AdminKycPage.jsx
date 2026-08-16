@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import StatusBadge from '../components/common/StatusBadge';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { TableSkeleton } from '../components/common/Skeletons';
-import { adminApproveKyc, adminGetAllKyc, adminGetKycDocuments, adminRejectKyc } from '../services/api';
+import { adminApproveKyc, adminGetAllKyc, adminGetKycDocuments, adminRejectKyc, getFileViewUrl } from '../services/api';
 import { formatDate } from '../utils/formatters';
 
 const TABS = ['PENDING', 'APPROVED', 'REJECTED', 'ALL'];
@@ -208,33 +207,62 @@ export default function AdminKycPage() {
 
       {/* Inspect Docs Modal */}
       {selectedDocModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-slate-800">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b pb-2">
-              Submitted KYC Documents
-            </h3>
-            <div className="mt-4 space-y-3">
-              {Object.entries(selectedDocModal.docs || {}).map(([docKey, url]) => (
-                <div key={docKey} className="flex items-center justify-between rounded-lg border p-3 dark:border-slate-700">
-                  <span className="text-sm font-medium capitalize text-slate-700 dark:text-slate-300">
-                    {docKey.replace(/([A-Z])/g, ' $1')}
-                  </span>
-                  <a
-                    href={url || '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold text-blue-600 hover:underline"
-                  >
-                    Open Document →
-                  </a>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="flex items-center justify-between border-b pb-3 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                Submitted KYC Documents
+              </h3>
               <button
                 type="button"
                 onClick={() => setSelectedDocModal(null)}
-                className="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 dark:bg-slate-700 dark:text-white"
+                className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 flex-1 overflow-y-auto space-y-4 pr-1">
+              {Object.entries(selectedDocModal.docs || {}).map(([docKey, rawUrl]) => {
+                const fullUrl = getFileViewUrl(rawUrl);
+                const isPdf = String(rawUrl || '').toLowerCase().endsWith('.pdf');
+                return (
+                  <div key={docKey} className="rounded-xl border p-4 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold capitalize text-slate-800 dark:text-slate-200">
+                        {docKey.replace(/([A-Z])/g, ' $1')}
+                      </span>
+                      <a
+                        href={fullUrl || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        Open Full Size ↗
+                      </a>
+                    </div>
+                    {fullUrl && !isPdf ? (
+                      <div className="overflow-hidden rounded-lg border dark:border-slate-700 bg-slate-100 dark:bg-slate-900 max-h-56 flex items-center justify-center">
+                        <img
+                          src={fullUrl}
+                          alt={docKey}
+                          className="h-full w-full object-contain max-h-56"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border p-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                        {isPdf ? 'PDF Document — click Open Full Size to view' : 'Document link ready'}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-5 flex justify-end border-t pt-3 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSelectedDocModal(null)}
+                className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900"
               >
                 Close
               </button>
